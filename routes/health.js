@@ -10,6 +10,7 @@ router.get('/', async (req, res) => {
       timestamp: result.rows[0].now,
       uptime: process.uptime()
     });
+    
   } catch (error) {
     res.status(503).json({ 
       status: 'error',
