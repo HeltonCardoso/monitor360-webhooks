@@ -13,8 +13,8 @@ router.post('/jet', async (req, res) => {
     const eventId = uuidv4();
     const { pedido_id, status, timestamp } = req.body;
 
-    // Responder IMEDIATAMENTE (202 = Accepted)
-    res.status(202).json({ 
+    // Responder IMEDIATAMENTE (200 = Accepted)
+    res.status(200).json({ 
       success: true, 
       eventId,
       message: 'Webhook JET recebido'
@@ -34,7 +34,7 @@ router.post('/jet', async (req, res) => {
   } catch (error) {
     console.error('❌ Erro ao processar webhook JET:', error.message);
     // Responder mesmo com erro
-    res.status(202).json({ success: true, message: 'Recebido' });
+    res.status(200).json({ success: true, message: 'Recebido' });
   }
 });
 
@@ -49,7 +49,7 @@ router.post('/anymarket', async (req, res) => {
     const { pedido_id, status, timestamp, marketplace } = req.body;
 
     // Responder IMEDIATAMENTE
-    res.status(202).json({ 
+    res.status(200).json({ 
       success: true, 
       eventId,
       message: 'Webhook AnyMarket recebido'
@@ -68,7 +68,7 @@ router.post('/anymarket', async (req, res) => {
     }
   } catch (error) {
     console.error('❌ Erro ao processar webhook AnyMarket:', error.message);
-    res.status(202).json({ success: true, message: 'Recebido' });
+    res.status(200).json({ success: true, message: 'Recebido' });
   }
 });
 
@@ -83,7 +83,7 @@ router.post('/onlick', async (req, res) => {
     const { pedido_id, status, timestamp, invoice_number } = req.body;
 
     // Responder IMEDIATAMENTE
-    res.status(202).json({ 
+    res.status(200).json({ 
       success: true, 
       eventId,
       message: 'Webhook Onlick recebido'
@@ -102,7 +102,7 @@ router.post('/onlick', async (req, res) => {
     }
   } catch (error) {
     console.error('❌ Erro ao processar webhook Onlick:', error.message);
-    res.status(202).json({ success: true, message: 'Recebido' });
+    res.status(200).json({ success: true, message: 'Recebido' });
   }
 });
 
