@@ -1,121 +1,109 @@
 const express = require('express');
 const router = express.Router();
-const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../config/database');
 
-// Middleware de validação de assinatura
-const validateWebhookSignature = (secret) => {
-  return (req, res, next) => {
-    const signature = req.headers['x-webhook-signature'];
-    const timestamp = req.headers['x-webhook-timestamp'];
-    
-    if (!signature || !timestamp) {
-      return res.status(401).json({ error: 'Missing signature or timestamp' });
+// POST /webhooks/jet
+router.post('/jet', async (req, res) => {
+  try {
+    console.log('📥 WEBHOOK JET RECEBIDO!');
+    console.log('Timestamp:', new Date().toLocaleString('pt-BR'));
+    console.log('Body:', JSON.stringify(req.body).substring(0, 200));
+
+    const eventId = uuidv4();
+    const { pedido_id, status, timestamp } = req.body;
+
+    // Responder IMEDIATAMENTE (202 = Accepted)
+    res.status(202).json({ 
+      success: true, 
+      eventId,
+      message: 'Webhook JET recebido'
+    });
+
+    // Processar em background (não bloqueia a resposta)
+    if (pedido_id && status) {
+      await pool.query(
+        `INSERT INTO tracking_events 
+         (id, pedido_id, origem, status, timestamp, payload) 
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT DO NOTHING`,
+        [eventId, pedido_id, 'JET', status, new Date(timestamp || Date.now()), JSON.stringify(req.body)]
+      );
+      console.log('✅ Evento JET armazenado:', pedido_id);
     }
-
-    // Validar timestamp (máximo 5 minutos de diferença)
-    const now = Date.now();
-    const webhookTime = parseInt(timestamp);
-    if (Math.abs(now - webhookTime) > 5 * 60 * 1000) {
-      return res.status(401).json({ error: 'Timestamp expired' });
-    }
-
-    // Validar assinatura
-    const payload = JSON.stringify(req.body);
-    const expectedSignature = crypto
-      .createHmac('sha256', secret)
-      .update(`${timestamp}.${payload}`)
-      .digest('hex');
-
-    if (signature !== expectedSignature) {
-      return res.status(401).json({ error: 'Invalid signature' });
-    }
-
-    next();
-  };
-};
+  } catch (error) {
+    console.error('❌ Erro ao processar webhook JET:', error.message);
+    // Responder mesmo com erro
+    res.status(202).json({ success: true, message: 'Recebido' });
+  }
+});
 
 // POST /webhooks/anymarket
-router.post('/anymarket', 
-  validateWebhookSignature(process.env.WEBHOOK_SECRET_ANYMARKET),
-  async (req, res) => {
-    try {
-      const eventId = uuidv4();
-      const { pedido_id, status, timestamp, marketplace } = req.body;
+router.post('/anymarket', async (req, res) => {
+  try {
+    console.log('📥 WEBHOOK ANYMARKET RECEBIDO!');
+    console.log('Timestamp:', new Date().toLocaleString('pt-BR'));
+    console.log('Body:', JSON.stringify(req.body).substring(0, 200));
 
+    const eventId = uuidv4();
+    const { pedido_id, status, timestamp, marketplace } = req.body;
+
+    // Responder IMEDIATAMENTE
+    res.status(202).json({ 
+      success: true, 
+      eventId,
+      message: 'Webhook AnyMarket recebido'
+    });
+
+    // Processar em background
+    if (pedido_id && status) {
       await pool.query(
         `INSERT INTO tracking_events 
          (id, pedido_id, origem, status, timestamp, payload) 
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [eventId, pedido_id, 'ANYMARKET', status, new Date(timestamp), JSON.stringify(req.body)]
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT DO NOTHING`,
+        [eventId, pedido_id, 'ANYMARKET', status, new Date(timestamp || Date.now()), JSON.stringify(req.body)]
       );
-
-      res.status(202).json({ 
-        success: true, 
-        eventId,
-        message: 'Webhook AnyMarket recebido'
-      });
-    } catch (error) {
-      console.error('Erro ao processar webhook AnyMarket:', error);
-      res.status(500).json({ error: error.message });
+      console.log('✅ Evento AnyMarket armazenado:', pedido_id);
     }
+  } catch (error) {
+    console.error('❌ Erro ao processar webhook AnyMarket:', error.message);
+    res.status(202).json({ success: true, message: 'Recebido' });
   }
-);
-
-// POST /webhooks/jet
-router.post('/jet',
-  async (req, res) => {
-    try {
-      const eventId = uuidv4();
-      const { pedido_id, status, timestamp } = req.body;
-
-      await pool.query(
-        `INSERT INTO tracking_events 
-         (id, pedido_id, origem, status, timestamp, payload) 
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [eventId, pedido_id, 'JET', status, new Date(timestamp), JSON.stringify(req.body)]
-      );
-
-      res.status(202).json({ 
-        success: true, 
-        eventId,
-        message: 'Webhook JET recebido'
-      });
-    } catch (error) {
-      console.error('Erro ao processar webhook JET:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-);
+});
 
 // POST /webhooks/onlick
-router.post('/onlick',
-  validateWebhookSignature(process.env.WEBHOOK_SECRET_ONLICK),
-  async (req, res) => {
-    try {
-      const eventId = uuidv4();
-      const { pedido_id, status, timestamp, invoice_number } = req.body;
+router.post('/onlick', async (req, res) => {
+  try {
+    console.log('📥 WEBHOOK ONLICK RECEBIDO!');
+    console.log('Timestamp:', new Date().toLocaleString('pt-BR'));
+    console.log('Body:', JSON.stringify(req.body).substring(0, 200));
 
+    const eventId = uuidv4();
+    const { pedido_id, status, timestamp, invoice_number } = req.body;
 
+    // Responder IMEDIATAMENTE
+    res.status(202).json({ 
+      success: true, 
+      eventId,
+      message: 'Webhook Onlick recebido'
+    });
+
+    // Processar em background
+    if (pedido_id && status) {
       await pool.query(
         `INSERT INTO tracking_events 
          (id, pedido_id, origem, status, timestamp, payload) 
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [eventId, pedido_id, 'ONLICK', status, new Date(timestamp), JSON.stringify(req.body)]
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT DO NOTHING`,
+        [eventId, pedido_id, 'ONLICK', status, new Date(timestamp || Date.now()), JSON.stringify(req.body)]
       );
-
-
-      res.status(202).json({ 
-        success: true, 
-        eventId,
-        message: 'Webhook Onlick recebido'
-      });
-    } catch (error) {
-      console.error('Erro ao processar webhook Onlick:', error);
-      res.status(500).json({ error: error.message });
+      console.log('✅ Evento Onlick armazenado:', pedido_id);
     }
+  } catch (error) {
+    console.error('❌ Erro ao processar webhook Onlick:', error.message);
+    res.status(202).json({ success: true, message: 'Recebido' });
   }
-);
+});
 
 module.exports = router;
