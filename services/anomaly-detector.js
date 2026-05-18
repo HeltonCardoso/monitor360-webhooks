@@ -2,6 +2,7 @@ const pool = require('../config/database');
 const notification = require('./notification');
 const { SLA_CONFIG, PIPELINE_STAGES } = require('../config/constants');
 
+
 const createAnomaly = async (pedido_id, tipo, origem_falha, marketplace) => {
   try {
     await pool.query(
