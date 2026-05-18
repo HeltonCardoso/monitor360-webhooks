@@ -1,0 +1,144 @@
+# ========== VARIÁVEIS DE AMBIENTE ==========
+# CRÍTICO: Nunca commitar arquivos .env com tokens/chaves
+.env
+.env.local
+.env.*.local
+.env.production.local
+.env.development.local
+.env.test.local
+
+# ========== NODE.JS ==========
+node_modules/
+npm-debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ========== LOGS ==========
+logs/
+*.log
+*.logs
+log.txt
+
+# ========== BANCO DE DADOS ==========
+*.db
+*.sqlite
+*.sqlite3
+database.db
+postgres.db
+
+# ========== ARQUIVOS DO SISTEMA ==========
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.directory
+
+# ========== IDEs E EDITORES ==========
+# VS Code
+.vscode/
+*.code-workspace
+.history/
+
+# WebStorm / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+.vim/
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ========== BUILD E DIST ==========
+dist/
+build/
+.next/
+.nuxt/
+coverage/
+.nyc_output/
+
+# ========== ARQUIVOS TEMPORÁRIOS ==========
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# ========== ARQUIVOS SENSÍVEIS ==========
+# Chaves privadas
+*.pem
+*.key
+*.pub
+id_rsa
+id_rsa.pub
+
+# Certificados
+*.crt
+*.cer
+*.p12
+*.pfx
+
+# Configurações locais
+config.local.js
+config.local.json
+secrets.json
+credentials.json
+
+# ========== ARQUIVOS DE TESTE ==========
+.mocha
+.nyc_output
+coverage/
+test-results/
+
+# ========== ARQUIVOS DO PROJETO ==========
+# Render
+render.yaml.local
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# ========== ARQUIVOS ESPECÍFICOS DO MONITOR360 ==========
+# Backups de banco de dados
+backups/
+*.sql
+*.sql.gz
+
+# Relatórios
+reports/
+*.csv
+*.xlsx
+
+# Cache
+.cache/
+cache/
+
+# ========== NÃO IGNORAR ==========
+# Certifique-se de que estes arquivos SEMPRE sejam commitados
+!.gitkeep
+!.env.example
+!.env.example.local
