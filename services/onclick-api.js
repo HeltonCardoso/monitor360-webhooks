@@ -1,12 +1,12 @@
-const onlickApi = {
+const onclickApi = {
   async buscarDetalhesPedido(pedidoId) {
     try {
-      // Você não tem acesso à API Onlick ainda
+      // Você não tem acesso à API Onclick ainda
       // Retorna null para que o sistema use dados do webhook
-      console.log(`⚠️ API Onlick não disponível para pedido ${pedidoId}`);
+      console.log(`⚠️ API Onclick não disponível para pedido ${pedidoId}`);
       return null;
     } catch (error) {
-      console.error(`❌ Erro ao buscar pedido Onlick ${pedidoId}:`, error.message);
+      console.error(`❌ Erro ao buscar pedido Onclick ${pedidoId}:`, error.message);
       return null;
     }
   },
@@ -23,10 +23,10 @@ const onlickApi = {
         rastreamento: dados.tracking_number || null
       };
     } catch (error) {
-      console.error('❌ Erro ao extrair info Onlick:', error.message);
+      console.error('❌ Erro ao extrair info Onclick:', error.message);
       return null;
     }
   }
 };
 
-module.exports = onlickApi;
+module.exports = onclickApi;

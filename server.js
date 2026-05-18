@@ -24,7 +24,7 @@ app.get('/', (req, res) => {
       webhooks: {
         anymarket: '/webhooks/anymarket',
         jet: '/webhooks/jet',
-        onlick: '/webhooks/onlick'
+        onclick: '/webhooks/onclick'
       }
     }
   });

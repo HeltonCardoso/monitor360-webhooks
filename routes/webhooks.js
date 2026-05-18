@@ -3,7 +3,7 @@ const router = express.Router();
 const {
   processAnyMarketEvent,
   processJETEvent,
-  processOnlickEvent
+  processOnclickEvent
 } = require('../services/webhook-processor');
 
 router.post('/jet', async (req, res) => {
@@ -30,13 +30,13 @@ router.post('/anymarket', async (req, res) => {
   }
 });
 
-router.post('/onlick', async (req, res) => {
+router.post('/onclick', async (req, res) => {
   try {
-    console.log('📥 WEBHOOK ONLICK RECEBIDO!');
+    console.log('📥 WEBHOOK ONCLICK RECEBIDO!');
     res.status(200).json({ success: true });
     
     // Processar em background
-    await processOnlickEvent(req.body);
+    await processOnclickEvent(req.body);
   } catch (error) {
     console.error('❌ Erro:', error.message);
   }

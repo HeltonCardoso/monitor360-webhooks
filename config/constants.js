@@ -15,7 +15,7 @@ const STATUS_MAP = {
     'delivered': 'ENTREGUE',
     'cancelled': 'CANCELADO'
   },
-  ONLICK: {
+  ONCLICK: {
     'draft': 'RASCUNHO',
     'confirmed': 'CONFIRMADO',
     'invoiced': 'FATURADO',
@@ -38,7 +38,7 @@ const PIPELINE_STAGES = [
   'MARKETPLACE',
   'ANYMARKET',
   'JET',
-  'ONLICK',
+  'ONCLICK',
   'RETORNO_JET',
   'RETORNO_ANYMARKET',
   'RETORNO_MARKETPLACE'

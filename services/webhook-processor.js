@@ -3,7 +3,7 @@ const anomalyDetector = require('./anomaly-detector');
 const notification = require('./notification');
 const jetApi = require('./jet-api');
 const anymarketApi = require('./anymarket-api');
-const onlickApi = require('./onlick-api');
+const onclickApi = require('./onclick-api');
 const { STATUS_MAP } = require('../config/constants');
 const { v4: uuidv4 } = require('uuid');
 
@@ -111,12 +111,12 @@ const processJETEvent = async (payload) => {
 
     // 3. Sua lógica de anomalias
     if (normalizedStatus === 'ENVIADO') {
-      const onlickCheck = await pool.query(
+      const onclickCheck = await pool.query(
         `SELECT id FROM tracking_events WHERE pedido_id = $1 AND origem = $2 AND status = $3`,
-        [pedido_id, 'ONLICK', 'FATURADO']
+        [pedido_id, 'ONCLICK', 'FATURADO']
       );
 
-      if (!onlickCheck.rows.length) {
+      if (!onclickCheck.rows.length) {
         await anomalyDetector.createAnomaly(
           pedido_id,
           'FATUROU_NAO_RETORNOU',
@@ -132,22 +132,22 @@ const processJETEvent = async (payload) => {
   }
 };
 
-const processOnlickEvent = async (payload) => {
+const processOnclickEvent = async (payload) => {
   try {
     const { pedido_id, status, invoice_number } = payload;
     
-    console.log(`🔄 Processando Onlick: ${pedido_id} - ${status}`);
+    console.log(`🔄 Processando Onclick: ${pedido_id} - ${status}`);
 
     // 1. Extrair info (sem API)
-    const infoRelevante = onlickApi.extrairInfoRelevante(payload);
+    const infoRelevante = onclickApi.extrairInfoRelevante(payload);
 
     if (!infoRelevante) {
-      console.warn(`⚠️ Não conseguiu extrair info do pedido Onlick ${pedido_id}`);
+      console.warn(`⚠️ Não conseguiu extrair info do pedido Onclick ${pedido_id}`);
       return;
     }
 
     // 2. Armazenar em BD
-    const normalizedStatus = STATUS_MAP.ONLICK[status] || status;
+    const normalizedStatus = STATUS_MAP.ONCLICK[status] || status;
 
     await pool.query(
       `INSERT INTO tracking_events 
@@ -161,7 +161,7 @@ const processOnlickEvent = async (payload) => {
       [
         uuidv4(),
         pedido_id,
-        'ONLICK',
+        'ONCLICK',
         normalizedStatus,
         new Date(),
         JSON.stringify(payload),
@@ -169,7 +169,7 @@ const processOnlickEvent = async (payload) => {
       ]
     );
 
-    console.log(`✅ Onlick ${pedido_id} armazenado`);
+    console.log(`✅ Onclick ${pedido_id} armazenado`);
 
     // 3. Sua lógica de anomalias
     if (normalizedStatus === 'FATURADO') {
@@ -183,7 +183,7 @@ const processOnlickEvent = async (payload) => {
           await anomalyDetector.createAnomaly(
             pedido_id,
             'FATUROU_NAO_RETORNOU',
-            'ONLICK',
+            'ONCLICK',
             null
           );
           await notification.sendAlert(
@@ -196,12 +196,12 @@ const processOnlickEvent = async (payload) => {
 
     await anomalyDetector.checkPipelineStatus(pedido_id);
   } catch (error) {
-    console.error('❌ Erro ao processar Onlick:', error.message);
+    console.error('❌ Erro ao processar Onclick:', error.message);
   }
 };
 
 module.exports = {
   processAnyMarketEvent,
   processJETEvent,
-  processOnlickEvent
+  processOnclickEvent
 };
