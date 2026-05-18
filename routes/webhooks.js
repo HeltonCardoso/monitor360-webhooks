@@ -3,7 +3,6 @@ const router = express.Router();
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../config/database');
-const webhookProcessor = require('../services/webhook-processor');
 
 // Middleware de validação de assinatura
 const validateWebhookSignature = (secret) => {
@@ -45,7 +44,6 @@ router.post('/anymarket',
       const eventId = uuidv4();
       const { pedido_id, status, timestamp, marketplace } = req.body;
 
-      // Armazenar evento bruto
       await pool.query(
         `INSERT INTO tracking_events 
          (id, pedido_id, origem, status, timestamp, payload) 
@@ -53,13 +51,10 @@ router.post('/anymarket',
         [eventId, pedido_id, 'ANYMARKET', status, new Date(timestamp), JSON.stringify(req.body)]
       );
 
-      // Processar e detectar anomalias
-      await webhookProcessor.processAnyMarketEvent(pedido_id, status, marketplace);
-
       res.status(202).json({ 
         success: true, 
         eventId,
-        message: 'Webhook recebido e processado'
+        message: 'Webhook AnyMarket recebido'
       });
     } catch (error) {
       console.error('Erro ao processar webhook AnyMarket:', error);
@@ -83,12 +78,10 @@ router.post('/jet',
         [eventId, pedido_id, 'JET', status, new Date(timestamp), JSON.stringify(req.body)]
       );
 
-      await webhookProcessor.processJETEvent(pedido_id, status);
-
       res.status(202).json({ 
         success: true, 
         eventId,
-        message: 'Webhook JET processado'
+        message: 'Webhook JET recebido'
       });
     } catch (error) {
       console.error('Erro ao processar webhook JET:', error);
@@ -112,12 +105,10 @@ router.post('/onlick',
         [eventId, pedido_id, 'ONLICK', status, new Date(timestamp), JSON.stringify(req.body)]
       );
 
-      await webhookProcessor.processOnlickEvent(pedido_id, status, invoice_number);
-
       res.status(202).json({ 
         success: true, 
         eventId,
-        message: 'Webhook Onlick processado'
+        message: 'Webhook Onlick recebido'
       });
     } catch (error) {
       console.error('Erro ao processar webhook Onlick:', error);
