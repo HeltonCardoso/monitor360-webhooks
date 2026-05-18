@@ -13,6 +13,23 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// Rota raiz
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Monitor360 Webhooks API',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/health',
+      webhooks: {
+        anymarket: '/webhooks/anymarket',
+        jet: '/webhooks/jet',
+        onlick: '/webhooks/onlick'
+      }
+    }
+  });
+});
+
 // Rotas
 app.use('/webhooks', webhookRoutes);
 app.use('/health', healthRoutes);
