@@ -15,8 +15,17 @@ const runMigrations = async () => {
     
     for (const statement of statements) {
       if (statement.trim()) {
-        await pool.query(statement);
-        console.log('✅ Executado:', statement.substring(0, 50) + '...');
+        try {
+          await pool.query(statement);
+          console.log('✅ Executado:', statement.substring(0, 50) + '...');
+        } catch (error) {
+          // Ignorar erros de "já existe" (código 42P07)
+          if (error.code === '42P07') {
+            console.log('⏭️  Já existe:', statement.substring(0, 50) + '...');
+          } else {
+            throw error;
+          }
+        }
       }
     }
 
@@ -24,7 +33,7 @@ const runMigrations = async () => {
     await pool.end();
     process.exit(0);
   } catch (error) {
-    console.error('❌ Erro nas migrations:', error);
+    console.error('❌ Erro nas migrations:', error.message);
     process.exit(1);
   }
 };
