@@ -3,6 +3,7 @@ const anomalyDetector = require('./anomaly-detector');
 const notification = require('./notification');
 const { STATUS_MAP } = require('../config/constants');
 
+
 const processAnyMarketEvent = async (pedido_id, status, marketplace) => {
   // Normalizar status
   const normalizedStatus = STATUS_MAP.ANYMARKET[status] || status;
