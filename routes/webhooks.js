@@ -65,7 +65,6 @@ router.post('/anymarket',
 
 // POST /webhooks/jet
 router.post('/jet',
-  validateWebhookSignature(process.env.WEBHOOK_SECRET_JET),
   async (req, res) => {
     try {
       const eventId = uuidv4();
@@ -98,7 +97,7 @@ router.post('/onlick',
       const eventId = uuidv4();
       const { pedido_id, status, timestamp, invoice_number } = req.body;
 
-      
+
       await pool.query(
         `INSERT INTO tracking_events 
          (id, pedido_id, origem, status, timestamp, payload) 
