@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Webhook aggregator for AnyMarket, JET, and Onlick",
   "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
+   "scripts": {
+    "start": "node migrations/run.js && node server.js",
     "dev": "nodemon server.js",
     "migrate": "node migrations/run.js"
   },
