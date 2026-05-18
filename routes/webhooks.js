@@ -98,12 +98,14 @@ router.post('/onlick',
       const eventId = uuidv4();
       const { pedido_id, status, timestamp, invoice_number } = req.body;
 
+      
       await pool.query(
         `INSERT INTO tracking_events 
          (id, pedido_id, origem, status, timestamp, payload) 
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [eventId, pedido_id, 'ONLICK', status, new Date(timestamp), JSON.stringify(req.body)]
       );
+
 
       res.status(202).json({ 
         success: true, 

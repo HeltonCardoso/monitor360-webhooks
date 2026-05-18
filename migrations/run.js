@@ -29,6 +29,7 @@ const runMigrations = async () => {
       }
     }
 
+    
     console.log('✅ Migrations concluídas com sucesso!');
     await pool.end();
     process.exit(0);
