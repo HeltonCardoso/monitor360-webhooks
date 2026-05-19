@@ -1,3 +1,4 @@
+// services/webhook-processor.js
 const pool = require('../config/database');
 const anomalyDetector = require('./anomaly-detector');
 const notification = require('./notification');
@@ -10,20 +11,38 @@ const { v4: uuidv4 } = require('uuid');
 const processAnyMarketEvent = async (payload) => {
   try {
     const { content, event } = payload;
-    const pedido_id = content.id;
-    
-    console.log(`🔄 Processando AnyMarket: ${pedido_id} - ${event}`);
+    const idAnyMarket = content.id;
+    const numeroMarketplace = content.marketPlaceId;  // ✅ CAMPO CHAVE
 
-    const dadosCompletos = await anymarketApi.buscarDetalhesPedido(pedido_id);
+    console.log(`📥 WEBHOOK ANYMARKET RECEBIDO!`);
+    console.log(`🔄 Processando AnyMarket: ${idAnyMarket} - Marketplace: ${numeroMarketplace} - ${event}`);
+
+    // ✅ SALVAR O MAPEAMENTO
+    await pool.query(
+      `INSERT INTO pedidos_mapeamento 
+       (id_anymarket, numero_marketplace, marketplace_origem)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (numero_marketplace) DO UPDATE SET
+         id_anymarket = $1,
+         atualizado_em = NOW()`,
+      [idAnyMarket, numeroMarketplace, content.marketPlace]
+    );
+
+    // ✅ BUSCAR DADOS COMPLETOS
+    const dadosCompletos = await anymarketApi.buscarDetalhesPedido(idAnyMarket);
     const infoRelevante = anymarketApi.extrairInfoRelevante(dadosCompletos);
 
     if (!infoRelevante) {
-      console.warn(`⚠️ Não conseguiu extrair info do pedido AnyMarket ${pedido_id}`);
+      console.warn(`⚠️ Não conseguiu extrair info do pedido AnyMarket ${idAnyMarket}`);
+      // ✅ MESMO SEM INFO, SALVAR O WEBHOOK
+      await salvarWebhookAnyMarket(idAnyMarket, numeroMarketplace, event, payload);
       return;
     }
 
+    // ✅ NORMALIZAR STATUS
     const normalizedStatus = STATUS_MAP.ANYMARKET[event] || event;
-    
+
+    // ✅ SALVAR COM OS DADOS COMPLETOS
     await pool.query(
       `INSERT INTO tracking_events 
        (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
@@ -35,7 +54,7 @@ const processAnyMarketEvent = async (payload) => {
          dados_completos = EXCLUDED.dados_completos`,
       [
         uuidv4(),
-        pedido_id,
+        numeroMarketplace,  // ✅ USAR numero_marketplace COMO CHAVE
         'ANYMARKET',
         normalizedStatus,
         new Date(),
@@ -44,36 +63,70 @@ const processAnyMarketEvent = async (payload) => {
       ]
     );
 
-    console.log(`✅ AnyMarket ${pedido_id} armazenado`);
+    console.log(`✅ AnyMarket ${numeroMarketplace} armazenado`);
 
+    // ✅ VERIFICAR ANOMALIAS
     const jetCheck = await pool.query(
-      'SELECT id FROM tracking_events WHERE pedido_id = $1 AND origem = $2 LIMIT 1',
-      [pedido_id, 'JET']
+      `SELECT id FROM tracking_events 
+       WHERE pedido_id = $1 AND origem = $2 LIMIT 1`,
+      [numeroMarketplace, 'JET']
     );
 
     if (!jetCheck.rows.length) {
       await anomalyDetector.createAnomaly(
-        pedido_id,
+        numeroMarketplace,
         'NAO_INTEGROU_JET',
         'ANYMARKET',
         infoRelevante.marketplace
       );
     }
 
-    await anomalyDetector.checkPipelineStatus(pedido_id);
+    // ✅ VALIDAR PIPELINE
+    await anomalyDetector.checkPipelineStatus(numeroMarketplace);
+
   } catch (error) {
     console.error('❌ Erro ao processar AnyMarket:', error.message);
+  }
+};
+
+// ✅ FUNÇÃO AUXILIAR PARA SALVAR MESMO SEM DADOS DA API
+const salvarWebhookAnyMarket = async (idAnyMarket, numeroMarketplace, event, payload) => {
+  try {
+    const normalizedStatus = STATUS_MAP.ANYMARKET[event] || event;
+
+    await pool.query(
+      `INSERT INTO tracking_events 
+       (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (pedido_id, origem) DO UPDATE SET
+         status = EXCLUDED.status,
+         timestamp = EXCLUDED.timestamp,
+         payload = EXCLUDED.payload`,
+      [
+        uuidv4(),
+        numeroMarketplace,
+        'ANYMARKET',
+        normalizedStatus,
+        new Date(),
+        JSON.stringify(payload),
+        JSON.stringify(payload)
+      ]
+    );
+
+    console.log(`✅ AnyMarket ${numeroMarketplace} armazenado (sem dados da API)`);
+  } catch (error) {
+    console.error('❌ Erro ao salvar webhook AnyMarket:', error.message);
   }
 };
 
 const processJETEvent = async (payload) => {
   try {
     const { Id: idInterno, ModifiedId: numeroPedido, Event, EventOccurredAt } = payload;
-    
+
     console.log(`📥 WEBHOOK JET RECEBIDO!`);
     console.log(`🔄 Processando JET: ${idInterno} - Pedido: ${numeroPedido} - ${Event}`);
 
-    // ✅ AGORA TEMOS O NÚMERO DO PEDIDO, BUSCAR NA API
+    // ✅ BUSCAR DADOS COMPLETOS
     const dadosCompletos = await jetApi.buscarDetalhesPedido(numeroPedido);
     const infoRelevante = jetApi.extrairInfoRelevante(dadosCompletos);
 
@@ -99,7 +152,7 @@ const processJETEvent = async (payload) => {
          dados_completos = EXCLUDED.dados_completos`,
       [
         uuidv4(),
-        numeroPedido,  // ✅ USAR O NÚMERO REAL DO PEDIDO
+        infoRelevante.numero_marketplace,  // ✅ USAR numero_marketplace
         'JET',
         normalizedStatus,
         new Date(EventOccurredAt),
@@ -110,17 +163,28 @@ const processJETEvent = async (payload) => {
 
     console.log(`✅ JET ${numeroPedido} armazenado`);
 
+    // ✅ SALVAR MAPEAMENTO
+    await pool.query(
+      `INSERT INTO pedidos_mapeamento 
+       (id_jet, numero_marketplace)
+       VALUES ($1, $2)
+       ON CONFLICT (numero_marketplace) DO UPDATE SET
+         id_jet = $1,
+         atualizado_em = NOW()`,
+      [numeroPedido, infoRelevante.numero_marketplace]
+    );
+
     // ✅ VERIFICAR ANOMALIAS
     if (normalizedStatus === 'ENVIADO') {
       const onclickCheck = await pool.query(
         `SELECT id FROM tracking_events 
          WHERE pedido_id = $1 AND origem = $2 AND status = $3`,
-        [numeroPedido, 'ONCLICK', 'FATURADO']
+        [infoRelevante.numero_marketplace, 'ONCLICK', 'FATURADO']
       );
 
       if (!onclickCheck.rows.length) {
         await anomalyDetector.createAnomaly(
-          numeroPedido,
+          infoRelevante.numero_marketplace,
           'FATUROU_NAO_RETORNOU',
           'JET',
           null
@@ -128,8 +192,8 @@ const processJETEvent = async (payload) => {
       }
     }
 
-    // ✅ VERIFICAR STATUS DO PIPELINE
-    await anomalyDetector.checkPipelineStatus(numeroPedido);
+    // ✅ VALIDAR PIPELINE
+    await anomalyDetector.checkPipelineStatus(infoRelevante.numero_marketplace);
 
   } catch (error) {
     console.error('❌ Erro ao processar JET:', error.message);
@@ -169,7 +233,8 @@ const salvarWebhookJET = async (idInterno, numeroPedido, event, eventOccurredAt,
 const processOnclickEvent = async (payload) => {
   try {
     const { pedido_id, status, invoice_number } = payload;
-    
+
+    console.log(`📥 WEBHOOK ONCLICK RECEBIDO!`);
     console.log(`🔄 Processando Onclick: ${pedido_id} - ${status}`);
 
     const infoRelevante = onclickApi.extrairInfoRelevante(payload);
@@ -206,7 +271,8 @@ const processOnclickEvent = async (payload) => {
     if (normalizedStatus === 'FATURADO') {
       setTimeout(async () => {
         const jetReturn = await pool.query(
-          `SELECT id FROM tracking_events WHERE pedido_id = $1 AND origem = $2 AND timestamp > NOW() - INTERVAL '2 hours'`,
+          `SELECT id FROM tracking_events 
+           WHERE pedido_id = $1 AND origem = $2 AND timestamp > NOW() - INTERVAL '2 hours'`,
           [pedido_id, 'JET']
         );
 
@@ -217,6 +283,7 @@ const processOnclickEvent = async (payload) => {
             'ONCLICK',
             null
           );
+
           await notification.sendAlert(
             `Pedido ${pedido_id} faturado mas não retornou a JET`,
             'CRITICAL'
@@ -225,7 +292,9 @@ const processOnclickEvent = async (payload) => {
       }, 2 * 60 * 60 * 1000);
     }
 
+    // ✅ VALIDAR PIPELINE
     await anomalyDetector.checkPipelineStatus(pedido_id);
+
   } catch (error) {
     console.error('❌ Erro ao processar Onclick:', error.message);
   }

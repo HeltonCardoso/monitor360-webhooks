@@ -183,3 +183,43 @@ BEGIN
         FOREIGN KEY (pedido_id) REFERENCES pedidos_anymarket(id) ON DELETE CASCADE;
     END IF;
 END $$;
+
+-- ========== TABELA: pedidos_mapeamento ==========
+-- Mapeia IDs de pedidos entre diferentes plataformas
+-- Campo chave: numero_marketplace (conecta AnyMarket ↔ JET)
+
+CREATE TABLE IF NOT EXISTS pedidos_mapeamento (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  
+  -- IDs em cada plataforma
+  id_anymarket BIGINT,
+  id_jet BIGINT,
+  id_onclick BIGINT,
+  id_marketplace VARCHAR(100),
+  
+  -- Campo comum (o que conecta tudo)
+  numero_marketplace VARCHAR(100) NOT NULL UNIQUE,
+  
+  -- Marketplace origem
+  marketplace_origem VARCHAR(50),
+  
+  -- Metadados
+  criado_em TIMESTAMP DEFAULT NOW(),
+  atualizado_em TIMESTAMP DEFAULT NOW()
+);
+
+-- ✅ CRIAR ÍNDICES
+CREATE INDEX IF NOT EXISTS idx_numero_marketplace 
+ON pedidos_mapeamento(numero_marketplace);
+
+CREATE INDEX IF NOT EXISTS idx_id_anymarket 
+ON pedidos_mapeamento(id_anymarket);
+
+CREATE INDEX IF NOT EXISTS idx_id_jet 
+ON pedidos_mapeamento(id_jet);
+
+CREATE INDEX IF NOT EXISTS idx_id_onclick 
+ON pedidos_mapeamento(id_onclick);
+
+CREATE INDEX IF NOT EXISTS idx_marketplace_origem 
+ON pedidos_mapeamento(marketplace_origem);
