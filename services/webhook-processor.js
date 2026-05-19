@@ -68,15 +68,26 @@ const processAnyMarketEvent = async (payload) => {
 
 const processJETEvent = async (payload) => {
   try {
-    const { Id: idInterno, Event, EventOccurredAt } = payload;
+    const { Id: idInterno, ModifiedId: numeroPedido, Event, EventOccurredAt } = payload;
     
     console.log(`📥 WEBHOOK JET RECEBIDO!`);
-    console.log(`🔄 Processando JET: ${idInterno} - ${Event}`);
+    console.log(`🔄 Processando JET: ${idInterno} - Pedido: ${numeroPedido} - ${Event}`);
+
+    // ✅ AGORA TEMOS O NÚMERO DO PEDIDO, BUSCAR NA API
+    const dadosCompletos = await jetApi.buscarDetalhesPedido(numeroPedido);
+    const infoRelevante = jetApi.extrairInfoRelevante(dadosCompletos);
+
+    if (!infoRelevante) {
+      console.warn(`⚠️ Não conseguiu extrair info do pedido JET ${numeroPedido}`);
+      // ✅ MESMO SEM INFO, SALVAR O WEBHOOK
+      await salvarWebhookJET(idInterno, numeroPedido, Event, EventOccurredAt, payload);
+      return;
+    }
 
     // ✅ NORMALIZAR STATUS
     const normalizedStatus = STATUS_MAP.JET[Event] || Event;
 
-    // ✅ SALVAR O WEBHOOK IMEDIATAMENTE (sem chamar API)
+    // ✅ SALVAR COM OS DADOS COMPLETOS
     await pool.query(
       `INSERT INTO tracking_events 
        (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
@@ -88,28 +99,28 @@ const processJETEvent = async (payload) => {
          dados_completos = EXCLUDED.dados_completos`,
       [
         uuidv4(),
-        idInterno,  // ✅ Usar ID interno como pedido_id por enquanto
+        numeroPedido,  // ✅ USAR O NÚMERO REAL DO PEDIDO
         'JET',
         normalizedStatus,
         new Date(EventOccurredAt),
         JSON.stringify(payload),
-        JSON.stringify(payload)  // ✅ Salvar payload completo como dados_completos
+        JSON.stringify(infoRelevante)
       ]
     );
 
-    console.log(`✅ JET ${idInterno} armazenado`);
+    console.log(`✅ JET ${numeroPedido} armazenado`);
 
     // ✅ VERIFICAR ANOMALIAS
     if (normalizedStatus === 'ENVIADO') {
       const onclickCheck = await pool.query(
         `SELECT id FROM tracking_events 
          WHERE pedido_id = $1 AND origem = $2 AND status = $3`,
-        [idInterno, 'ONCLICK', 'FATURADO']
+        [numeroPedido, 'ONCLICK', 'FATURADO']
       );
 
       if (!onclickCheck.rows.length) {
         await anomalyDetector.createAnomaly(
-          idInterno,
+          numeroPedido,
           'FATUROU_NAO_RETORNOU',
           'JET',
           null
@@ -118,10 +129,40 @@ const processJETEvent = async (payload) => {
     }
 
     // ✅ VERIFICAR STATUS DO PIPELINE
-    await anomalyDetector.checkPipelineStatus(idInterno);
+    await anomalyDetector.checkPipelineStatus(numeroPedido);
 
   } catch (error) {
     console.error('❌ Erro ao processar JET:', error.message);
+  }
+};
+
+// ✅ FUNÇÃO AUXILIAR PARA SALVAR MESMO SEM DADOS DA API
+const salvarWebhookJET = async (idInterno, numeroPedido, event, eventOccurredAt, payload) => {
+  try {
+    const normalizedStatus = STATUS_MAP.JET[event] || event;
+
+    await pool.query(
+      `INSERT INTO tracking_events 
+       (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (pedido_id, origem) DO UPDATE SET
+         status = EXCLUDED.status,
+         timestamp = EXCLUDED.timestamp,
+         payload = EXCLUDED.payload`,
+      [
+        uuidv4(),
+        numeroPedido,
+        'JET',
+        normalizedStatus,
+        new Date(eventOccurredAt),
+        JSON.stringify(payload),
+        JSON.stringify(payload)
+      ]
+    );
+
+    console.log(`✅ JET ${numeroPedido} armazenado (sem dados da API)`);
+  } catch (error) {
+    console.error('❌ Erro ao salvar webhook JET:', error.message);
   }
 };
 
