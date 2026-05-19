@@ -1,11 +1,6 @@
--- Corrige tabelas existentes se faltarem colunas
-ALTER TABLE tracking_events ADD COLUMN IF NOT EXISTS dados_completos JSONB;
+-- ========== 1. PRIMEIRO CRIAR AS TABELAS ==========
 
--- Corrige constraint da tabela tracking_events
-ALTER TABLE tracking_events DROP CONSTRAINT IF EXISTS tracking_events_pedido_id_origem_status_timestamp_key;
-ALTER TABLE tracking_events ADD CONSTRAINT tracking_events_pedido_id_origem_key UNIQUE (pedido_id, origem);
-
--- ========== TABELA DE EVENTOS DE RASTREAMENTO ==========
+-- TABELA DE EVENTOS DE RASTREAMENTO
 CREATE TABLE IF NOT EXISTS tracking_events (
   id UUID PRIMARY KEY,
   pedido_id VARCHAR(50) NOT NULL,
@@ -18,12 +13,7 @@ CREATE TABLE IF NOT EXISTS tracking_events (
   UNIQUE(pedido_id, origem)
 );
 
-CREATE INDEX IF NOT EXISTS idx_tracking_pedido_id ON tracking_events(pedido_id);
-CREATE INDEX IF NOT EXISTS idx_tracking_origem ON tracking_events(origem);
-CREATE INDEX IF NOT EXISTS idx_tracking_timestamp ON tracking_events(timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_tracking_events_dados_completos ON tracking_events USING GIN(dados_completos);
-
--- ========== TABELA DE ANOMALIAS ==========
+-- TABELA DE ANOMALIAS
 CREATE TABLE IF NOT EXISTS anomalias (
   id SERIAL PRIMARY KEY,
   pedido_id VARCHAR(50) NOT NULL,
@@ -36,11 +26,7 @@ CREATE TABLE IF NOT EXISTS anomalias (
   UNIQUE(pedido_id, tipo)
 );
 
-CREATE INDEX IF NOT EXISTS idx_anomalias_pedido_id ON anomalias(pedido_id);
-CREATE INDEX IF NOT EXISTS idx_anomalias_tipo ON anomalias(tipo);
-CREATE INDEX IF NOT EXISTS idx_anomalias_criado_em ON anomalias(criado_em DESC);
-
--- ========== TABELA DE CONFIGURAÇÃO DE SLA ==========
+-- TABELA DE CONFIGURAÇÃO DE SLA
 CREATE TABLE IF NOT EXISTS sla_config (
   id SERIAL PRIMARY KEY,
   marketplace VARCHAR(50) UNIQUE,
@@ -49,7 +35,7 @@ CREATE TABLE IF NOT EXISTS sla_config (
   criado_em TIMESTAMP DEFAULT NOW()
 );
 
--- ========== TABELA DE LOGS ==========
+-- TABELA DE LOGS
 CREATE TABLE IF NOT EXISTS logs (
   id SERIAL PRIMARY KEY,
   nivel VARCHAR(20),
@@ -58,9 +44,7 @@ CREATE TABLE IF NOT EXISTS logs (
   criado_em TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_logs_criado_em ON logs(criado_em DESC);
-
--- ========== TABELA DE PEDIDOS ANYMARKET ==========
+-- TABELA DE PEDIDOS ANYMARKET
 CREATE TABLE IF NOT EXISTS pedidos_anymarket (
   id BIGINT PRIMARY KEY,
   account_name VARCHAR(255),
@@ -115,13 +99,7 @@ CREATE TABLE IF NOT EXISTS pedidos_anymarket (
   atualizado_em TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_pedidos_anymarket_id ON pedidos_anymarket(id);
-CREATE INDEX IF NOT EXISTS idx_pedidos_anymarket_status ON pedidos_anymarket(status);
-CREATE INDEX IF NOT EXISTS idx_pedidos_anymarket_created_at ON pedidos_anymarket(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_pedidos_anymarket_marketplace ON pedidos_anymarket(marketplace);
-CREATE INDEX IF NOT EXISTS idx_pedidos_anymarket_dados_completos ON pedidos_anymarket USING GIN(dados_completos);
-
--- ========== TABELA DE PEDIDOS JET ==========
+-- TABELA DE PEDIDOS JET
 CREATE TABLE IF NOT EXISTS pedidos_jet (
   id VARCHAR(50) PRIMARY KEY,
   id_version INT,
@@ -144,12 +122,7 @@ CREATE TABLE IF NOT EXISTS pedidos_jet (
   atualizado_em TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_pedidos_jet_id ON pedidos_jet(id);
-CREATE INDEX IF NOT EXISTS idx_pedidos_jet_status ON pedidos_jet(status);
-CREATE INDEX IF NOT EXISTS idx_pedidos_jet_created_at ON pedidos_jet(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_pedidos_jet_dados_completos ON pedidos_jet USING GIN(dados_completos);
-
--- ========== TABELA DE ITENS DO PEDIDO ==========
+-- TABELA DE ITENS DO PEDIDO
 CREATE TABLE IF NOT EXISTS pedidos_items (
   id SERIAL PRIMARY KEY,
   pedido_id BIGINT,
@@ -163,10 +136,41 @@ CREATE TABLE IF NOT EXISTS pedidos_items (
   preco_unitario DECIMAL(10, 2),
   desconto DECIMAL(10, 2),
   total DECIMAL(10, 2),
-  criado_em TIMESTAMP DEFAULT NOW(),
-  FOREIGN KEY (pedido_id) REFERENCES pedidos_anymarket(id) ON DELETE CASCADE
+  criado_em TIMESTAMP DEFAULT NOW()
 );
+
+-- ========== 2. DEPOIS ADICIONAR COLUNAS (se necessário) ==========
+-- (A maioria já está no CREATE TABLE, então estes são apenas para upgrades)
+
+-- ========== 3. DEPOIS CRIAR OS ÍNDICES ==========
+CREATE INDEX IF NOT EXISTS idx_tracking_pedido_id ON tracking_events(pedido_id);
+CREATE INDEX IF NOT EXISTS idx_tracking_origem ON tracking_events(origem);
+CREATE INDEX IF NOT EXISTS idx_tracking_timestamp ON tracking_events(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_tracking_events_dados_completos ON tracking_events USING GIN(dados_completos);
+
+CREATE INDEX IF NOT EXISTS idx_anomalias_pedido_id ON anomalias(pedido_id);
+CREATE INDEX IF NOT EXISTS idx_anomalias_tipo ON anomalias(tipo);
+CREATE INDEX IF NOT EXISTS idx_anomalias_criado_em ON anomalias(criado_em DESC);
+
+CREATE INDEX IF NOT EXISTS idx_logs_criado_em ON logs(criado_em DESC);
+
+CREATE INDEX IF NOT EXISTS idx_pedidos_anymarket_id ON pedidos_anymarket(id);
+CREATE INDEX IF NOT EXISTS idx_pedidos_anymarket_status ON pedidos_anymarket(status);
+CREATE INDEX IF NOT EXISTS idx_pedidos_anymarket_created_at ON pedidos_anymarket(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pedidos_anymarket_marketplace ON pedidos_anymarket(marketplace);
+CREATE INDEX IF NOT EXISTS idx_pedidos_anymarket_dados_completos ON pedidos_anymarket USING GIN(dados_completos);
+
+CREATE INDEX IF NOT EXISTS idx_pedidos_jet_id ON pedidos_jet(id);
+CREATE INDEX IF NOT EXISTS idx_pedidos_jet_status ON pedidos_jet(status);
+CREATE INDEX IF NOT EXISTS idx_pedidos_jet_created_at ON pedidos_jet(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pedidos_jet_dados_completos ON pedidos_jet USING GIN(dados_completos);
 
 CREATE INDEX IF NOT EXISTS idx_pedidos_items_pedido_id ON pedidos_items(pedido_id);
 CREATE INDEX IF NOT EXISTS idx_pedidos_items_origem ON pedidos_items(origem);
 CREATE INDEX IF NOT EXISTS idx_pedidos_items_sku_code ON pedidos_items(sku_code);
+
+-- ========== 4. ADICIONAR FOREIGN KEYS (se necessário) ==========
+-- Adicionar FK depois que as tabelas existem
+ALTER TABLE pedidos_items 
+ADD CONSTRAINT fk_pedidos_items_pedido_id 
+FOREIGN KEY (pedido_id) REFERENCES pedidos_anymarket(id) ON DELETE CASCADE;
