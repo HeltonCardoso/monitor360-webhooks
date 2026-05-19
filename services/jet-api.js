@@ -3,32 +3,33 @@ const axios = require('axios');
 
 const jetApi = {
   async buscarDetalhesPedido(numeroPedido) {
-    try {
-      console.log(`🔍 Consultando JET: Pedido ${numeroPedido}`);
+  try {
+    console.log(`🔍 Consultando JET: Pedido ${numeroPedido}`);
 
-      const url = `https://api.jet.com.br/v1/${numeroPedido}`;
-      
-      const response = await axios.get(url, {
-        headers: {
-          'Authorization': `Bearer ${process.env.JET_API_TOKEN}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000
-      });
+    // ✅ TENTE ESTA URL (ajuste conforme necessário)
+    const url = `https://api.jet.com.br/v1/1/id/${numeroPedido}`;
+    
+    const response = await axios.get(url, {
+      headers: {
+        'Authorization': `Bearer ${process.env.JET_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 10000
+    });
 
-      if (response.data?.result) {
-        console.log(`✅ Pedido JET ${numeroPedido} encontrado`);
-        return response.data.result;
-      }
-
-      console.warn(`⚠️ Resposta vazia para pedido ${numeroPedido}`);
-      return null;
-
-    } catch (error) {
-      console.error(`❌ Erro ao buscar pedido JET ${numeroPedido}:`, error.message);
-      return null;
+    if (response.data?.result) {
+      console.log(`✅ Pedido JET ${numeroPedido} encontrado`);
+      return response.data.result;
     }
-  },
+
+    console.warn(`⚠️ Resposta vazia para pedido ${numeroPedido}`);
+    return null;
+
+  } catch (error) {
+    console.error(`❌ Erro ao buscar pedido JET ${numeroPedido}:`, error.message);
+    return null;
+  }
+},
 
   extrairInfoRelevante(dados) {
     if (!dados) return null;
