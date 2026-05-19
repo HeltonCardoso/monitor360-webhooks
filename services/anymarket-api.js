@@ -3,19 +3,21 @@ const axios = require('axios');
 const anymarketApi = {
   async buscarDetalhesPedido(pedidoId) {
     try {
-      const response = await axios.get(
-        `https://api.anymarket.com.br/v2/orders/${pedidoId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.ANYMARKET_API_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 10000
-        }
-      );
+      const url = `https://api.anymarket.com.br/v2/orders/${pedidoId}`;
+      const token = process.env.ANYMARKET_API_KEY;
+      
+      console.log(`🔍 Consultando AnyMarket: ${url}`);
+      
+      const response = await axios.get(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'gumgaToken': token  // ✅ MUDE AQUI
+        },
+        timeout: 10000
+      });
       return response.data;
     } catch (error) {
-      console.error(`❌ Erro ao buscar pedido AnyMarket ${pedidoId}:`, error.message);
+      console.error(`❌ Erro ao buscar pedido AnyMarket ${pedidoId}:`, error.response?.status, error.message);
       return null;
     }
   },
@@ -26,27 +28,27 @@ const anymarketApi = {
     try {
       return {
         id: dados.id,
-        cliente: dados.customer?.name || dados.Customer?.Name || 'N/A',
-        email: dados.customer?.email || dados.Customer?.Email || 'N/A',
-        telefone: dados.customer?.phone || dados.Customer?.Phone || 'N/A',
-        status: dados.status || dados.Status,
-        valor_total: dados.totalAmount || dados.TotalAmount || 0,
-        data_pedido: dados.createdAt || dados.CreatedAt,
+        cliente: dados.customer?.name || 'N/A',
+        email: dados.customer?.email || 'N/A',
+        telefone: dados.customer?.phone || 'N/A',
+        status: dados.status,
+        valor_total: dados.totalAmount || 0,
+        data_pedido: dados.createdAt,
         marketplace: dados.marketplace || 'N/A',
         endereco: {
-          rua: dados.shippingAddress?.street || dados.ShippingAddress?.Street,
-          numero: dados.shippingAddress?.number || dados.ShippingAddress?.Number,
-          cidade: dados.shippingAddress?.city || dados.ShippingAddress?.City,
-          estado: dados.shippingAddress?.state || dados.ShippingAddress?.State,
-          cep: dados.shippingAddress?.zipCode || dados.ShippingAddress?.ZipCode
+          rua: dados.shippingAddress?.street,
+          numero: dados.shippingAddress?.number,
+          cidade: dados.shippingAddress?.city,
+          estado: dados.shippingAddress?.state,
+          cep: dados.shippingAddress?.zipCode
         },
-        produtos: (dados.products || dados.Products || []).map(item => ({
-          sku: item.sku || item.Sku,
-          nome: item.name || item.Name,
-          quantidade: item.quantity || item.Quantity,
-          preco: item.price || item.Price
+        produtos: (dados.products || []).map(item => ({
+          sku: item.sku,
+          nome: item.name,
+          quantidade: item.quantity,
+          preco: item.price
         })),
-        rastreamento: dados.trackingNumber || dados.TrackingNumber || null
+        rastreamento: dados.trackingNumber || null
       };
     } catch (error) {
       console.error('❌ Erro ao extrair info AnyMarket:', error.message);
