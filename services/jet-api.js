@@ -1,18 +1,19 @@
 // services/jet-api.js
-const jetOpenapi = require('@api/jet-openapi');
-
-// Configurar autenticação uma vez
-jetOpenapi.auth(process.env.JET_API_TOKEN);
+const axios = require('axios');
 
 const jetApi = {
   async buscarDetalhesPedido(numeroPedido) {
     try {
       console.log(`🔍 Consultando JET: Pedido ${numeroPedido}`);
 
-      // ✅ USAR A SDK CORRETAMENTE
-      const response = await jetOpenapi.getApiVVersionIdIdorder({
-        version: '1',
-        idOrder: numeroPedido.toString()
+      const url = `https://api.jet.com.br/v1/${numeroPedido}`;
+      
+      const response = await axios.get(url, {
+        headers: {
+          'Authorization': `Bearer ${process.env.JET_API_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
       });
 
       if (response.data?.result) {
