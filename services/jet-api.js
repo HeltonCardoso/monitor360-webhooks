@@ -1,89 +1,138 @@
 // services/jet-api.js
 const axios = require('axios');
 
-const jetApi = {
-  async buscarDetalhesPedido(numeroPedido) {
-  try {
-    console.log(`🔍 Consultando JET: Pedido ${numeroPedido}`);
+const API_KEY = process.env.JET_API_TOKEN;
 
-    // ✅ TENTE ESTA URL (ajuste conforme necessário)
-    const url = `https://api.jet.com.br/v1/1/id/${numeroPedido}`;
-    
-    const response = await axios.get(url, {
-      headers: {
-        'Authorization': `Bearer ${process.env.JET_API_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 10000
-    });
+if (!API_KEY) {
+  console.warn('⚠️ Aviso: JET_API_TOKEN não configurado. As buscas de pedidos falharão.');
+}
 
-    if (response.data?.result) {
-      console.log(`✅ Pedido JET ${numeroPedido} encontrado`);
-      return response.data.result;
+const BASE_URL = 'https://openapi.plataformaneo.com.br/order/api/v1/id';
+const cachePedidos = new Map();
+
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function buscarDetalhesPedido(idOrder, tentativa = 1) {
+  const maxTentativas = 3;
+
+  // Verifica cache
+  if (cachePedidos.has(idOrder)) {
+    const cached = cachePedidos.get(idOrder);
+    if (Date.now() - cached.timestamp < 86400000) {
+      console.log(`📦 Pedido ${idOrder} veio do cache`);
+      return cached.dados;
     }
-
-    console.warn(`⚠️ Resposta vazia para pedido ${numeroPedido}`);
-    return null;
-
-  } catch (error) {
-    console.error(`❌ Erro ao buscar pedido JET ${numeroPedido}:`, error.message);
-    return null;
   }
-},
 
-  extrairInfoRelevante(dados) {
-    if (!dados) return null;
+  const url = `${BASE_URL}/${idOrder}`;
 
+  for (let tentativaAtual = 1; tentativaAtual <= maxTentativas; tentativaAtual++) {
     try {
-      return {
-        id: dados.idOrder,
-        numero_marketplace: dados.marketPlaceNumberOrder,
-        marketplace: dados.marketPlaceName,
-        cliente: dados.nameCustomer,
-        email: dados.email,
-        telefone: dados.phone1,
-        cpf_cnpj: dados.cpf_cnpj,
-        status: dados.historyListOrderStatus?.[0]?.statusCode || 'DESCONHECIDO',
-        valor_total: dados.total,
-        valor_frete: dados.totalShipping,
-        desconto: dados.totalDiscount,
-        data_pedido: dados.dateOrder,
-        endereco: {
-          rua: dados.address?.streetAddress,
-          numero: dados.address?.number,
-          complemento: dados.address?.complement,
-          bairro: dados.address?.neighbourhood,
-          cidade: dados.address?.city,
-          estado: dados.address?.state,
-          cep: dados.address?.zipCode,
-          destinatario: dados.address?.receiver
+      console.log(`🔍 Buscando pedido ${idOrder} (tentativa ${tentativaAtual}/${maxTentativas})...`);
+      const inicio = Date.now();
+
+      const response = await axios({
+        method: 'GET',
+        url: url,
+        headers: {
+          'apiKey': API_KEY,
+          'Content-Type': 'application/json'
         },
-        produtos: (dados.orderItems || []).map(item => ({
-          id: item.idProduct,
-          codigo: item.productCode,
-          nome: item.name?.replace(/<[^>]*>/g, ''), // Remove HTML tags
-          quantidade: item.quantity,
-          preco_unitario: item.unitPrice,
-          total: item.total,
-          marca: item.brand,
-          categoria: item.category
-        })),
-        pagamento: {
-          metodo: dados.namePaymentMethodGateway,
-          parcelas: dados.numberOfInstallments,
-          valor_parcela: dados.valueOfInstallment
-        },
-        rastreamento: {
-          transportadora: dados.shippingCompany,
-          numero_rastreamento: dados.historyListOrderStatus?.[0]?.orderInfo?.trackingNumber || null,
-          link_rastreamento: dados.historyListOrderStatus?.[0]?.trackingLink || null
-        }
-      };
+        timeout: 60000 // ✅ Aumentado para 60 segundos
+      });
+
+      const tempo = Date.now() - inicio;
+
+      if (response.data) {
+        console.log(`✅ Pedido ${idOrder} obtido em ${tempo / 1000}s`);
+        const dados = response.data.result || response.data;
+        cachePedidos.set(idOrder, { dados: dados, timestamp: Date.now() });
+        return dados;
+      }
+
     } catch (error) {
-      console.error('❌ Erro ao extrair info JET:', error.message);
-      return null;
+      const isTimeout = error.code === 'ECONNABORTED';
+      const status = error.response?.status;
+
+      if (isTimeout) {
+        console.log(`⏳ Timeout na tentativa ${tentativaAtual}, aguardando 3s...`);
+        await delay(3000);
+        continue;
+      }
+
+      if (status === 404 && tentativaAtual < maxTentativas) {
+        console.log(`⚠️ Pedido ${idOrder} não encontrado (404), aguardando e tentando novamente...`);
+        await delay(3000);
+        continue;
+      }
+
+      if (tentativaAtual === maxTentativas) {
+        console.error(`❌ Erro ao buscar pedido ${idOrder}:`, isTimeout ? 'Timeout' : (status || error.message));
+      }
     }
   }
+
+  return null;
+}
+
+function extrairInfoRelevante(detalhes) {
+  if (!detalhes) return null;
+
+  return {
+    id: detalhes.idOrder,
+    numero_marketplace: detalhes.marketPlaceNumberOrder,
+    marketplace: detalhes.marketPlaceName,
+    cliente: detalhes.nameCustomer,
+    email: detalhes.email,
+    telefone: detalhes.phone1,
+    cpf_cnpj: detalhes.cpf_cnpj,
+    status: detalhes.historyListOrderStatus?.[0]?.statusCode || 'DESCONHECIDO',
+    valor_total: detalhes.total,
+    valor_frete: detalhes.totalShipping,
+    desconto: detalhes.totalDiscount,
+    data_pedido: detalhes.dateOrder,
+    endereco: {
+      rua: detalhes.address?.streetAddress,
+      numero: detalhes.address?.number,
+      complemento: detalhes.address?.complement,
+      bairro: detalhes.address?.neighbourhood,
+      cidade: detalhes.address?.city,
+      estado: detalhes.address?.state,
+      cep: detalhes.address?.zipCode,
+      destinatario: detalhes.address?.receiver
+    },
+    produtos: (detalhes.orderItems || []).map(item => ({
+      id: item.idProduct,
+      codigo: item.productCode,
+      nome: item.name?.replace(/<[^>]*>/g, '').substring(0, 100),
+      quantidade: item.quantity,
+      preco_unitario: item.unitPrice,
+      total: item.total,
+      marca: item.brand,
+      categoria: item.category
+    })),
+    pagamento: {
+      metodo: detalhes.namePaymentMethodGateway,
+      parcelas: detalhes.numberOfInstallments,
+      valor_parcela: detalhes.valueOfInstallment
+    },
+    rastreamento: {
+      transportadora: detalhes.shippingCompany,
+      numero_rastreamento: detalhes.historyListOrderStatus?.[0]?.orderInfo?.trackingNumber || null,
+      link_rastreamento: detalhes.historyListOrderStatus?.[0]?.trackingLink || null
+    }
+  };
+}
+
+function statusCache() {
+  const total = cachePedidos.size;
+  console.log(`📊 Cache: ${total} pedido${total !== 1 ? 's' : ''} armazenado${total !== 1 ? 's' : ''}`);
+}
+
+const jetApi = {
+  buscarDetalhesPedido,
+  extrairInfoRelevante,
+  statusCache
 };
 
 module.exports = jetApi;
