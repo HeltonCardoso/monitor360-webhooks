@@ -2,15 +2,16 @@
 CREATE TABLE IF NOT EXISTS tracking_events (
   id UUID PRIMARY KEY,
   pedido_id VARCHAR(50) NOT NULL,
-  origem VARCHAR(20) NOT NULL, -- 'ANYMARKET', 'JET', 'ONLICK'
+  origem VARCHAR(20) NOT NULL,
   status VARCHAR(50) NOT NULL,
   timestamp TIMESTAMP NOT NULL,
   payload JSONB,
-  dados_completos JSONB,
+  dados_completos JSONB,  -- ✅ ADICIONE AQUI NA CRIAÇÃO DA TABELA
   criado_em TIMESTAMP DEFAULT NOW(),
   UNIQUE(pedido_id, origem, status, timestamp)
 );
 
+-- ✅ DEPOIS crie os índices
 CREATE INDEX IF NOT EXISTS idx_tracking_pedido_id ON tracking_events(pedido_id);
 CREATE INDEX IF NOT EXISTS idx_tracking_origem ON tracking_events(origem);
 CREATE INDEX IF NOT EXISTS idx_tracking_timestamp ON tracking_events(timestamp DESC);
