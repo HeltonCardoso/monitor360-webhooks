@@ -139,10 +139,8 @@ CREATE TABLE IF NOT EXISTS pedidos_items (
   criado_em TIMESTAMP DEFAULT NOW()
 );
 
--- ========== 2. DEPOIS ADICIONAR COLUNAS (se necessário) ==========
--- (A maioria já está no CREATE TABLE, então estes são apenas para upgrades)
+-- ========== 2. CRIAR OS ÍNDICES ==========
 
--- ========== 3. DEPOIS CRIAR OS ÍNDICES ==========
 CREATE INDEX IF NOT EXISTS idx_tracking_pedido_id ON tracking_events(pedido_id);
 CREATE INDEX IF NOT EXISTS idx_tracking_origem ON tracking_events(origem);
 CREATE INDEX IF NOT EXISTS idx_tracking_timestamp ON tracking_events(timestamp DESC);
@@ -169,8 +167,19 @@ CREATE INDEX IF NOT EXISTS idx_pedidos_items_pedido_id ON pedidos_items(pedido_i
 CREATE INDEX IF NOT EXISTS idx_pedidos_items_origem ON pedidos_items(origem);
 CREATE INDEX IF NOT EXISTS idx_pedidos_items_sku_code ON pedidos_items(sku_code);
 
--- ========== 4. ADICIONAR FOREIGN KEYS (se necessário) ==========
--- Adicionar FK depois que as tabelas existem
-ALTER TABLE pedidos_items 
-ADD CONSTRAINT fk_pedidos_items_pedido_id 
-FOREIGN KEY (pedido_id) REFERENCES pedidos_anymarket(id) ON DELETE CASCADE;
+-- ========== 3. ADICIONAR FOREIGN KEYS ==========
+-- Adicionar FK apenas se não existir (evita erro de duplicidade)
+
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM information_schema.table_constraints 
+        WHERE constraint_name = 'fk_pedidos_items_pedido_id' 
+        AND table_name = 'pedidos_items'
+    ) THEN
+        ALTER TABLE pedidos_items 
+        ADD CONSTRAINT fk_pedidos_items_pedido_id 
+        FOREIGN KEY (pedido_id) REFERENCES pedidos_anymarket(id) ON DELETE CASCADE;
+    END IF;
+END $$;
