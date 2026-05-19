@@ -68,20 +68,15 @@ const processAnyMarketEvent = async (payload) => {
 
 const processJETEvent = async (payload) => {
   try {
-    const { Id: pedido_id, Event, EventOccurredAt } = payload;
+    const { Id: idInterno, Event, EventOccurredAt } = payload;
     
-    console.log(`🔄 Processando JET: ${pedido_id} - ${Event}`);
+    console.log(`📥 WEBHOOK JET RECEBIDO!`);
+    console.log(`🔄 Processando JET: ${idInterno} - ${Event}`);
 
-    const dadosCompletos = await jetApi.buscarDetalhesPedido(pedido_id);
-    const infoRelevante = jetApi.extrairInfoRelevante(dadosCompletos);
-
-    if (!infoRelevante) {
-      console.warn(`⚠️ Não conseguiu extrair info do pedido JET ${pedido_id}`);
-      return;
-    }
-
+    // ✅ NORMALIZAR STATUS
     const normalizedStatus = STATUS_MAP.JET[Event] || Event;
 
+    // ✅ SALVAR O WEBHOOK IMEDIATAMENTE (sem chamar API)
     await pool.query(
       `INSERT INTO tracking_events 
        (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
@@ -93,26 +88,28 @@ const processJETEvent = async (payload) => {
          dados_completos = EXCLUDED.dados_completos`,
       [
         uuidv4(),
-        pedido_id,
+        idInterno,  // ✅ Usar ID interno como pedido_id por enquanto
         'JET',
         normalizedStatus,
         new Date(EventOccurredAt),
         JSON.stringify(payload),
-        JSON.stringify(infoRelevante)
+        JSON.stringify(payload)  // ✅ Salvar payload completo como dados_completos
       ]
     );
 
-    console.log(`✅ JET ${pedido_id} armazenado`);
+    console.log(`✅ JET ${idInterno} armazenado`);
 
+    // ✅ VERIFICAR ANOMALIAS
     if (normalizedStatus === 'ENVIADO') {
       const onclickCheck = await pool.query(
-        `SELECT id FROM tracking_events WHERE pedido_id = $1 AND origem = $2 AND status = $3`,
-        [pedido_id, 'ONCLICK', 'FATURADO']
+        `SELECT id FROM tracking_events 
+         WHERE pedido_id = $1 AND origem = $2 AND status = $3`,
+        [idInterno, 'ONCLICK', 'FATURADO']
       );
 
       if (!onclickCheck.rows.length) {
         await anomalyDetector.createAnomaly(
-          pedido_id,
+          idInterno,
           'FATUROU_NAO_RETORNOU',
           'JET',
           null
@@ -120,7 +117,9 @@ const processJETEvent = async (payload) => {
       }
     }
 
-    await anomalyDetector.checkPipelineStatus(pedido_id);
+    // ✅ VERIFICAR STATUS DO PIPELINE
+    await anomalyDetector.checkPipelineStatus(idInterno);
+
   } catch (error) {
     console.error('❌ Erro ao processar JET:', error.message);
   }
