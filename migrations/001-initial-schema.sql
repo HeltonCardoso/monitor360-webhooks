@@ -1,6 +1,10 @@
 -- Corrige tabelas existentes se faltarem colunas
 ALTER TABLE tracking_events ADD COLUMN IF NOT EXISTS dados_completos JSONB;
 
+-- Corrige constraint da tabela tracking_events
+ALTER TABLE tracking_events DROP CONSTRAINT IF EXISTS tracking_events_pedido_id_origem_status_timestamp_key;
+ALTER TABLE tracking_events ADD CONSTRAINT tracking_events_pedido_id_origem_key UNIQUE (pedido_id, origem);
+
 -- ========== TABELA DE EVENTOS DE RASTREAMENTO ==========
 CREATE TABLE IF NOT EXISTS tracking_events (
   id UUID PRIMARY KEY,
@@ -11,7 +15,7 @@ CREATE TABLE IF NOT EXISTS tracking_events (
   payload JSONB,
   dados_completos JSONB,
   criado_em TIMESTAMP DEFAULT NOW(),
-  UNIQUE(pedido_id, origem, status, timestamp)
+  UNIQUE(pedido_id, origem)
 );
 
 CREATE INDEX IF NOT EXISTS idx_tracking_pedido_id ON tracking_events(pedido_id);

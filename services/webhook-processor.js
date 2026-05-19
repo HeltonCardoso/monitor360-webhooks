@@ -14,7 +14,6 @@ const processAnyMarketEvent = async (payload) => {
     
     console.log(`🔄 Processando AnyMarket: ${pedido_id} - ${event}`);
 
-    // 1. Consultar API AnyMarket para dados completos
     const dadosCompletos = await anymarketApi.buscarDetalhesPedido(pedido_id);
     const infoRelevante = anymarketApi.extrairInfoRelevante(dadosCompletos);
 
@@ -23,7 +22,6 @@ const processAnyMarketEvent = async (payload) => {
       return;
     }
 
-    // 2. Armazenar em BD
     const normalizedStatus = STATUS_MAP.ANYMARKET[event] || event;
     
     await pool.query(
@@ -31,10 +29,10 @@ const processAnyMarketEvent = async (payload) => {
        (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (pedido_id, origem) DO UPDATE SET
-         status = $4,
-         timestamp = $5,
-         payload = $6,
-         dados_completos = $7`,
+         status = EXCLUDED.status,
+         timestamp = EXCLUDED.timestamp,
+         payload = EXCLUDED.payload,
+         dados_completos = EXCLUDED.dados_completos`,
       [
         uuidv4(),
         pedido_id,
@@ -48,7 +46,6 @@ const processAnyMarketEvent = async (payload) => {
 
     console.log(`✅ AnyMarket ${pedido_id} armazenado`);
 
-    // 3. Sua lógica de anomalias
     const jetCheck = await pool.query(
       'SELECT id FROM tracking_events WHERE pedido_id = $1 AND origem = $2 LIMIT 1',
       [pedido_id, 'JET']
@@ -75,7 +72,6 @@ const processJETEvent = async (payload) => {
     
     console.log(`🔄 Processando JET: ${pedido_id} - ${Event}`);
 
-    // 1. Consultar API JET
     const dadosCompletos = await jetApi.buscarDetalhesPedido(pedido_id);
     const infoRelevante = jetApi.extrairInfoRelevante(dadosCompletos);
 
@@ -84,7 +80,6 @@ const processJETEvent = async (payload) => {
       return;
     }
 
-    // 2. Armazenar em BD
     const normalizedStatus = STATUS_MAP.JET[Event] || Event;
 
     await pool.query(
@@ -92,10 +87,10 @@ const processJETEvent = async (payload) => {
        (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (pedido_id, origem) DO UPDATE SET
-         status = $4,
-         timestamp = $5,
-         payload = $6,
-         dados_completos = $7`,
+         status = EXCLUDED.status,
+         timestamp = EXCLUDED.timestamp,
+         payload = EXCLUDED.payload,
+         dados_completos = EXCLUDED.dados_completos`,
       [
         uuidv4(),
         pedido_id,
@@ -109,7 +104,6 @@ const processJETEvent = async (payload) => {
 
     console.log(`✅ JET ${pedido_id} armazenado`);
 
-    // 3. Sua lógica de anomalias
     if (normalizedStatus === 'ENVIADO') {
       const onclickCheck = await pool.query(
         `SELECT id FROM tracking_events WHERE pedido_id = $1 AND origem = $2 AND status = $3`,
@@ -138,7 +132,6 @@ const processOnclickEvent = async (payload) => {
     
     console.log(`🔄 Processando Onclick: ${pedido_id} - ${status}`);
 
-    // 1. Extrair info (sem API)
     const infoRelevante = onclickApi.extrairInfoRelevante(payload);
 
     if (!infoRelevante) {
@@ -146,7 +139,6 @@ const processOnclickEvent = async (payload) => {
       return;
     }
 
-    // 2. Armazenar em BD
     const normalizedStatus = STATUS_MAP.ONCLICK[status] || status;
 
     await pool.query(
@@ -154,10 +146,10 @@ const processOnclickEvent = async (payload) => {
        (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (pedido_id, origem) DO UPDATE SET
-         status = $4,
-         timestamp = $5,
-         payload = $6,
-         dados_completos = $7`,
+         status = EXCLUDED.status,
+         timestamp = EXCLUDED.timestamp,
+         payload = EXCLUDED.payload,
+         dados_completos = EXCLUDED.dados_completos`,
       [
         uuidv4(),
         pedido_id,
@@ -171,7 +163,6 @@ const processOnclickEvent = async (payload) => {
 
     console.log(`✅ Onclick ${pedido_id} armazenado`);
 
-    // 3. Sua lógica de anomalias
     if (normalizedStatus === 'FATURADO') {
       setTimeout(async () => {
         const jetReturn = await pool.query(
