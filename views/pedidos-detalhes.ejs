@@ -1,0 +1,203 @@
+<!-- views/pedido-detalhes.ejs -->
+<%- include('layout') %>
+
+<div class="row">
+  <div class="col-12">
+    <a href="/pedidos" class="btn btn-secondary mb-3">
+      <i class="fas fa-arrow-left"></i> Voltar
+    </a>
+    <h1 class="mb-4">
+      <i class="fas fa-box"></i> Pedido <span id="numeroPedido">-</span>
+    </h1>
+  </div>
+</div>
+
+<!-- Informações Gerais -->
+<div class="row">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-info-circle"></i> Informações Gerais
+      </div>
+      <div class="card-body">
+        <p><strong>Cliente:</strong> <span id="cliente">-</span></p>
+        <p><strong>Email:</strong> <span id="email">-</span></p>
+        <p><strong>Telefone:</strong> <span id="telefone">-</span></p>
+        <p><strong>CPF/CNPJ:</strong> <span id="cpfCnpj">-</span></p>
+        <p><strong>Valor Total:</strong> <span id="valorTotal">-</span></p>
+        <p><strong>Data do Pedido:</strong> <span id="dataPedido">-</span></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-map-marker-alt"></i> Endereço de Entrega
+      </div>
+      <div class="card-body">
+        <p id="endereco">-</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Status em Cada Plataforma -->
+<div class="row">
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-header bg-primary">
+        <i class="fas fa-shopping-cart"></i> Marketplace
+      </div>
+      <div class="card-body text-center">
+        <div class="metric-value" id="statusMarketplace">-</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-header bg-info">
+        <i class="fas fa-cube"></i> AnyMarket
+      </div>
+      <div class="card-body text-center">
+        <div class="metric-value" id="statusAnymarket">-</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-header bg-warning">
+        <i class="fas fa-industry"></i> JET
+      </div>
+      <div class="card-body text-center">
+        <div class="metric-value" id="statusJet">-</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-header bg-success">
+        <i class="fas fa-check-circle"></i> Onclick
+      </div>
+      <div class="card-body text-center">
+        <div class="metric-value" id="statusOnclick">-</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Timeline de Eventos -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-history"></i> Timeline de Eventos
+      </div>
+      <div class="card-body">
+        <div id="timeline">
+          <p class="text-muted">Carregando...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Mapeamento de IDs -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-link"></i> Mapeamento de IDs
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table">
+            <tr>
+              <td><strong>Número Marketplace:</strong></td>
+              <td id="mapNumeroMarketplace">-</td>
+            </tr>
+            <tr>
+              <td><strong>ID AnyMarket:</strong></td>
+              <td id="mapIdAnymarket">-</td>
+            </tr>
+            <tr>
+              <td><strong>ID JET:</strong></td>
+              <td id="mapIdJet">-</td>
+            </tr>
+            <tr>
+              <td><strong>ID Onclick:</strong></td>
+              <td id="mapIdOnclick">-</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const numeroMarketplace = '<%= numeroMarketplace %>';
+
+  async function carregarDetalhes() {
+    try {
+      const response = await fetch(`/api/pedidos/${numeroMarketplace}`);
+      const data = await response.json();
+
+      // Informações gerais
+      document.getElementById('numeroPedido').textContent = numeroMarketplace;
+      document.getElementById('cliente').textContent = data.pipeline?.cliente_nome || '-';
+      document.getElementById('email').textContent = data.pipeline?.email || '-';
+      document.getElementById('telefone').textContent = data.pipeline?.telefone || '-';
+      document.getElementById('cpfCnpj').textContent = data.pipeline?.cpf_cnpj || '-';
+      document.getElementById('valorTotal').textContent = `R$ ${(data.pipeline?.valor_total || 0).toFixed(2)}`;
+      document.getElementById('dataPedido').textContent = new Date(data.pipeline?.criado_em).toLocaleString('pt-BR');
+
+      // Status
+      document.getElementById('statusMarketplace').textContent = data.pipeline?.status_marketplace || '-';
+      document.getElementById('statusAnymarket').textContent = data.pipeline?.status_anymarket || '-';
+      document.getElementById('statusJet').textContent = data.pipeline?.status_jet || '-';
+      document.getElementById('statusOnclick').textContent = data.pipeline?.status_onclick || '-';
+
+      // Mapeamento
+      document.getElementById('mapNumeroMarketplace').textContent = data.mapeamento?.numero_marketplace || '-';
+      document.getElementById('mapIdAnymarket').textContent = data.mapeamento?.id_anymarket || '-';
+      document.getElementById('mapIdJet').textContent = data.mapeamento?.id_jet || '-';
+      document.getElementById('mapIdOnclick').textContent = data.mapeamento?.id_onclick || '-';
+
+      // Timeline
+      let timelineHtml = '';
+      data.eventos.forEach(evento => {
+        const icon = {
+          'ANYMARKET': '<i class="fas fa-cube text-info"></i>',
+          'JET': '<i class="fas fa-industry text-warning"></i>',
+          'ONCLICK': '<i class="fas fa-check-circle text-success"></i>',
+          'MARKETPLACE': '<i class="fas fa-shopping-cart text-primary"></i>'
+        }[evento.origem] || '<i class="fas fa-circle"></i>';
+
+        timelineHtml += `
+          <div class="mb-3">
+            <div class="d-flex">
+              <div class="me-3">${icon}</div>
+              <div>
+                <strong>${evento.origem}</strong> - ${evento.status}
+                <br>
+                <small class="text-muted">${new Date(evento.timestamp).toLocaleString('pt-BR')}</small>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      document.getElementById('timeline').innerHTML = timelineHtml;
+
+    } catch (error) {
+      console.error('Erro ao carregar detalhes:', error);
+      showAlert('Erro ao carregar detalhes do pedido', 'danger');
+    }
+  }
+
+  // Inicializar
+  carregarDetalhes();
+</script>

@@ -1,0 +1,225 @@
+<!-- views/layout.ejs -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MONITOR360 - Dashboard</title>
+  
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/css/dashboard.css">
+  
+  <style>
+    :root {
+      --primary: #2c3e50;
+      --success: #27ae60;
+      --danger: #e74c3c;
+      --warning: #f39c12;
+      --info: #3498db;
+    }
+
+    body {
+      background-color: #ecf0f1;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .navbar {
+      background: linear-gradient(135deg, var(--primary) 0%, #34495e 100%);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .navbar-brand {
+      font-weight: bold;
+      font-size: 1.5rem;
+      color: white !important;
+    }
+
+    .sidebar {
+      background: white;
+      border-right: 1px solid #ddd;
+      min-height: 100vh;
+      padding: 20px 0;
+    }
+
+    .sidebar a {
+      color: #2c3e50;
+      text-decoration: none;
+      padding: 12px 20px;
+      display: block;
+      border-left: 3px solid transparent;
+      transition: all 0.3s;
+    }
+
+    .sidebar a:hover,
+    .sidebar a.active {
+      background-color: #ecf0f1;
+      border-left-color: var(--primary);
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .main-content {
+      padding: 30px;
+    }
+
+    .card {
+      border: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .card-header {
+      background: linear-gradient(135deg, var(--primary) 0%, #34495e 100%);
+      color: white;
+      border: none;
+      font-weight: 600;
+    }
+
+    .metric-card {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .metric-value {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: var(--primary);
+    }
+
+    .metric-label {
+      color: #7f8c8d;
+      font-size: 0.9rem;
+      margin-top: 10px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .status-pago { background-color: #d4edda; color: #155724; }
+    .status-enviado { background-color: #cce5ff; color: #004085; }
+    .status-faturado { background-color: #d1ecf1; color: #0c5460; }
+    .status-desconhecido { background-color: #e2e3e5; color: #383d41; }
+
+    .anomalia-badge {
+      background-color: #f8d7da;
+      color: #721c24;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+
+    .footer {
+      background: white;
+      padding: 20px;
+      text-align: center;
+      color: #7f8c8d;
+      border-top: 1px solid #ddd;
+      margin-top: 40px;
+    }
+
+    .alert-container {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      z-index: 1000;
+      max-width: 400px;
+    }
+
+    .spinner-border-sm {
+      width: 1rem;
+      height: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/">
+        <i class="fas fa-chart-line"></i> MONITOR360
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <span class="nav-link" id="status-online">
+              <i class="fas fa-circle text-success"></i> Online
+            </span>
+          </li>
+          <li class="nav-item">
+            <button class="btn btn-sm btn-light" onclick="location.reload()">
+              <i class="fas fa-sync-alt"></i> Atualizar
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Alert Container -->
+  <div class="alert-container" id="alertContainer"></div>
+
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <div class="col-md-2 sidebar">
+        <a href="/" class="active">
+          <i class="fas fa-home"></i> Dashboard
+        </a>
+        <a href="/pedidos">
+          <i class="fas fa-boxes"></i> Pedidos
+        </a>
+        <a href="/anomalias">
+          <i class="fas fa-exclamation-triangle"></i> Anomalias
+        </a>
+        <hr>
+        <a href="#" onclick="alert('Em desenvolvimento')">
+          <i class="fas fa-cog"></i> Configurações
+        </a>
+      </div>
+
+      <!-- Main Content -->
+      <div class="col-md-10 main-content">
+        <%- body %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>MONITOR360 © 2026 | Última atualização: <span id="lastUpdate">-</span></p>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <!-- Custom JS -->
+  <script src="/js/dashboard.js"></script>
+
+  <script>
+    // Atualizar hora
+    function updateTime() {
+      document.getElementById('lastUpdate').textContent = new Date().toLocaleString('pt-BR');
+    }
+    updateTime();
+    setInterval(updateTime, 1000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!-- views/anomalias.ejs -->
+<%- include('layout') %>
+
+<div class="row">
+  <div class="col-12">
+    <h1 class="mb-4">
+      <i class="fas fa-exclamation-triangle"></i> Anomalias
+    </h1>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-4">
+  <div class="card-header">
+    <i class="fas fa-filter"></i> Filtros
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-4">
+        <label>Status</label>
+        <select class="form-control" id="filtroResolucao">
+          <option value="">Todas</option>
+          <option value="false">Não Resolvidas</option>
+          <option value="true">Resolvidas</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label>Tipo de Anomalia</label>
+        <select class="form-control" id="filtroTipo">
+          <option value="">Todos</option>
+          <option value="NAO_INTEGROU_JET">Não Integrou JET</option>
+          <option value="FATUROU_NAO_RETORNOU">Faturou Não Retornou</option>
+          <option value="RETORNO_INCOMPLETO">Retorno Incompleto</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label>&nbsp;</label>
+        <button class="btn btn-primary w-100" onclick="carregarAnomalias()">
+          <i class="fas fa-search"></i> Filtrar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabela de Anomalias -->
+<div class="card">
+  <div class="card-header">
+    <i class="fas fa-list"></i> Lista de Anomalias
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover" id="tabelaAnomalias">
+        <thead>
+          <tr>
+            <th>Pedido</th>
+            <th>Tipo</th>
+            <th>Descrição</th>
+            <th>Origem</th>
+            <th>Data</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="7" class="text-center text-muted">Carregando...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Resolução -->
+<div class="modal fade" id="modalResolucao" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Resolver Anomalia</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Pedido: <strong id="modalPedidoId">-</strong></p>
+        <p>Tipo: <strong id="modalTipo">-</strong></p>
+        <div class="mb-3">
+          <label>Observações (opcional)</label>
+          <textarea class="form-control" id="modalObservacoes" rows="3" placeholder="Descreva como foi resolvido..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" onclick="resolverAnomalia()">
+          <i class="fas fa-check"></i> Resolver
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let anomaliaEmResolucao = null;
+
+  async function carregarAnomalias() {
+    try {
+      const resolucao = document.getElementById('filtroResolucao').value;
+      const tipo = document.getElementById('filtroTipo').value;
+
+      let url = '/api/anomalias?limit=50';
+      if (resolucao) url += `&resolvido=${resolucao}`;
+      if (tipo) url += `&tipo=${tipo}`;
+
+      const response = await fetch(url);
+      const data = await response.json();
+
+      const tbody = document.querySelector('#tabelaAnomalias tbody');
+      tbody.innerHTML = '';
+
+      if (data.anomalias.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-success">✅ Nenhuma anomalia!</td></tr>';
+        return;
+      }
+
+      data.anomalias.forEach(anomalia => {
+        const statusBadge = anomalia.resolvido 
+          ? '<span class="badge bg-success">Resolvida</span>'
+          : '<span class="badge bg-danger">Não Resolvida</span>';
+
+        const row = `
+          <tr>
+            <td><strong>${anomalia.pedido_id}</strong></td>
+            <td><span class="anomalia-badge">${anomalia.tipo_anomalia}</span></td>
+            <td>${anomalia.descricao_anomalia}</td>
+            <td>${anomalia.origem}</td>
+            <td>${new Date(anomalia.criado_em).toLocaleString('pt-BR')}</td>
+            <td>${statusBadge}</td>
+            <td>
+              <a href="/pedidos/${anomalia.pedido_id}" class="btn btn-sm btn-info" title="Ver pedido">
+                <i class="fas fa-eye"></i>
+              </a>
+              ${!anomalia.resolvido ? `
+                <button class="btn btn-sm btn-success" onclick="abrirModalResolucao('${anomalia.id}', '${anomalia.pedido_id}', '${anomalia.tipo_anomalia}')">
+                  <i class="fas fa-check"></i>
+                </button>
+              ` : ''}
+            </td>
+          </tr>
+        `;
+        tbody.innerHTML += row;
+      });
+
+    } catch (error) {
+      console.error('Erro ao carregar anomalias:', error);
+      showAlert('Erro ao carregar anomalias', 'danger');
+    }
+  }
+
+  function abrirModalResolucao(id, pedidoId, tipo) {
+    anomaliaEmResolucao = id;
+    document.getElementById('modalPedidoId').textContent = pedidoId;
+    document.getElementById('modalTipo').textContent = tipo;
+    document.getElementById('modalObservacoes').value = '';
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalResolucao'));
+    modal.show();
+  }
+
+  async function resolverAnomalia() {
+    try {
+      const observacoes = document.getElementById('modalObservacoes').value;
+
+      const response = await fetch(`/api/anomalias/${anomaliaEmResolucao}/resolver`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ observacoes })
+      });
+
+      if (response.ok) {
+        showAlert('Anomalia resolvida com sucesso!', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('modalResolucao')).hide();
+        carregarAnomalias();
+      } else {
+        showAlert('Erro ao resolver anomalia', 'danger');
+      }
+
+    } catch (error) {
+      console.error('Erro:', error);
+      showAlert('Erro ao resolver anomalia', 'danger');
+    }
+  }
+
+  // Inicializar
+  carregarAnomalias();
+</script>

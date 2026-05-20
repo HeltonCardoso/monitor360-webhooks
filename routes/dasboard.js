@@ -1,0 +1,39 @@
+// routes/dashboard.js
+
+const express = require('express');
+const router = express.Router();
+const dashboardController = require('../controllers/dashboardController');
+
+// 📊 Métricas gerais
+router.get('/api/metricas', dashboardController.getMetricasGerais);
+
+// 🚨 Anomalias
+router.get('/api/anomalias', dashboardController.getAnomalias);
+
+// 📋 Pedidos com pipeline
+router.get('/api/pedidos', dashboardController.getPedidosPipeline);
+
+// 🔍 Detalhes do pedido
+router.get('/api/pedidos/:numeroMarketplace', dashboardController.getPedidoDetalhes);
+
+// 📈 Gráfico
+router.get('/api/grafico/status', dashboardController.getGraficoStatusPorPlataforma);
+
+// 🎨 Páginas HTML
+router.get('/', (req, res) => {
+  res.render('dashboard');
+});
+
+router.get('/pedidos', (req, res) => {
+  res.render('pedidos');
+});
+
+router.get('/anomalias', (req, res) => {
+  res.render('anomalias');
+});
+
+router.get('/pedidos/:numeroMarketplace', (req, res) => {
+  res.render('pedido-detalhes', { numeroMarketplace: req.params.numeroMarketplace });
+});
+
+module.exports = router;

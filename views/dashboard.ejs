@@ -1,0 +1,252 @@
+<!-- views/dashboard.ejs -->
+<%- include('layout') %>
+
+<div class="row">
+  <div class="col-12">
+    <h1 class="mb-4">
+      <i class="fas fa-tachometer-alt"></i> Dashboard
+    </h1>
+  </div>
+</div>
+
+<!-- Métricas Gerais -->
+<div class="row" id="metricas">
+  <div class="col-md-3">
+    <div class="card metric-card">
+      <div class="metric-value" id="total-anymarket">-</div>
+      <div class="metric-label">AnyMarket</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card">
+      <div class="metric-value" id="total-jet">-</div>
+      <div class="metric-label">JET</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card">
+      <div class="metric-value" id="total-onclick">-</div>
+      <div class="metric-label">Onclick</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card metric-card">
+      <div class="metric-value text-danger" id="total-anomalias">-</div>
+      <div class="metric-label">Anomalias</div>
+    </div>
+  </div>
+</div>
+
+<!-- Taxa de Sincronização -->
+<div class="row">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-sync"></i> Taxa de Sincronização
+      </div>
+      <div class="card-body">
+        <div class="progress" style="height: 30px;">
+          <div class="progress-bar bg-success" id="taxa-sincronizacao" style="width: 0%">
+            <span id="taxa-texto">0%</span>
+          </div>
+        </div>
+        <small class="text-muted mt-2 d-block">
+          Pedidos que chegaram na JET / Total de pedidos
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-clock"></i> Últimas 24h
+      </div>
+      <div class="card-body">
+        <div id="ultimas24h">
+          <p class="text-muted">Carregando...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Gráficos -->
+<div class="row">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-chart-bar"></i> Status por Plataforma
+      </div>
+      <div class="card-body">
+        <canvas id="graficoStatus"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-chart-pie"></i> Distribuição de Pedidos
+      </div>
+      <div class="card-body">
+        <canvas id="graficoPedidos"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Anomalias Recentes -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-exclamation-triangle"></i> Anomalias Recentes
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover" id="tabelaAnomalias">
+            <thead>
+              <tr>
+                <th>Pedido</th>
+                <th>Tipo</th>
+                <th>Descrição</th>
+                <th>Origem</th>
+                <th>Data</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="6" class="text-center text-muted">Carregando...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Carregar métricas
+  async function carregarMetricas() {
+    try {
+      const response = await fetch('/api/metricas');
+      const data = await response.json();
+
+      // Atualizar cards
+      data.totalPorPlataforma.forEach(item => {
+        const id = `total-${item.origem.toLowerCase()}`;
+        document.getElementById(id).textContent = item.total;
+      });
+
+      document.getElementById('total-anomalias').textContent = data.anomalias.nao_resolvidas;
+
+      // Taxa de sincronização
+      const taxa = data.sincronizacao.taxa_sincronizacao_jet || 0;
+      document.getElementById('taxa-sincronizacao').style.width = taxa + '%';
+      document.getElementById('taxa-texto').textContent = taxa.toFixed(1) + '%';
+
+      // Últimas 24h
+      let html24h = '';
+      data.ultimas24h.forEach(item => {
+        html24h += `<p><strong>${item.origem}:</strong> ${item.total} pedidos</p>`;
+      });
+      document.getElementById('ultimas24h').innerHTML = html24h;
+
+    } catch (error) {
+      console.error('Erro ao carregar métricas:', error);
+    }
+  }
+
+  // Carregar anomalias
+  async function carregarAnomalias() {
+    try {
+      const response = await fetch('/api/anomalias?limit=5&resolvido=false');
+      const data = await response.json();
+
+      const tbody = document.querySelector('#tabelaAnomalias tbody');
+      tbody.innerHTML = '';
+
+      if (data.anomalias.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-success">✅ Nenhuma anomalia!</td></tr>';
+        return;
+      }
+
+      data.anomalias.forEach(anomalia => {
+        const row = `
+          <tr>
+            <td><strong>${anomalia.pedido_id}</strong></td>
+            <td><span class="anomalia-badge">${anomalia.tipo_anomalia}</span></td>
+            <td>${anomalia.descricao_anomalia}</td>
+            <td>${anomalia.origem}</td>
+            <td>${new Date(anomalia.criado_em).toLocaleString('pt-BR')}</td>
+            <td>
+              <span class="badge bg-danger">Não resolvida</span>
+            </td>
+          </tr>
+        `;
+        tbody.innerHTML += row;
+      });
+
+    } catch (error) {
+      console.error('Erro ao carregar anomalias:', error);
+    }
+  }
+
+  // Carregar gráfico
+  async function carregarGrafico() {
+    try {
+      const response = await fetch('/api/grafico/status');
+      const data = await response.json();
+
+      const labels = [];
+      const datasets = [];
+      const cores = ['#27ae60', '#3498db', '#e74c3c', '#f39c12'];
+
+      Object.keys(data).forEach((plataforma, index) => {
+        const statusData = data[plataforma];
+        datasets.push({
+          label: plataforma,
+          data: statusData.map(s => s.total),
+          backgroundColor: cores[index % cores.length]
+        });
+      });
+
+      // Pegar labels do primeiro dataset
+      if (datasets.length > 0) {
+        labels.push(...data[Object.keys(data)[0]].map(s => s.status));
+      }
+
+      const ctx = document.getElementById('graficoStatus').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'top' }
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Erro ao carregar gráfico:', error);
+    }
+  }
+
+  // Inicializar
+  carregarMetricas();
+  carregarAnomalias();
+  carregarGrafico();
+
+  // Atualizar a cada 30 segundos
+  setInterval(() => {
+    carregarMetricas();
+    carregarAnomalias();
+  }, 30000);
+</script>

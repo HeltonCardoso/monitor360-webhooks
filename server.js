@@ -5,6 +5,8 @@ require('dotenv').config();
 
 const webhookRoutes = require('./routes/webhooks');
 const healthRoutes = require('./routes/health');
+const express = require('express');
+const dashboardRoutes = require('./routes/dashboard');
 
 const app = express();
 
@@ -12,6 +14,10 @@ const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+app.set('view engine', 'ejs');
+app.set('views', './views');
+app.use(express.static('public'));
+app.use('/', dashboardRoutes);
 
 // Rota raiz
 app.get('/', (req, res) => {
