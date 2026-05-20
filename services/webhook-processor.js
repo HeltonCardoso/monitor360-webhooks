@@ -11,29 +11,36 @@ const { v4: uuidv4 } = require('uuid');
 const processAnyMarketEvent = async (payload) => {
   try {
     const { content, event } = payload;
-    const idAnyMarket = content.id;
-
-    // Busca o campo em todos os nomes possíveis que a AnyMarket pode enviar
-    const numeroMarketplace =
-      content.marketPlaceId   ||
-      content.marketplaceId   ||
-      content.MarketPlaceId   ||
-      content.externalId      ||
-      content.orderId         ||
-      content.numeroPedido    ||
-      null;
+    const idAnyMarket = content?.id;
 
     console.log(`📥 WEBHOOK ANYMARKET RECEBIDO!`);
-    console.log(`🔍 Campos disponíveis em content:`, Object.keys(content || {}));
-    console.log(`🔄 Processando AnyMarket: ${idAnyMarket} - Marketplace: ${numeroMarketplace} - ${event}`);
+    console.log(`🔄 Processando AnyMarket ID: ${idAnyMarket} - Evento: ${event}`);
 
-    // Abortar antes de tentar inserir com null
-    if (!numeroMarketplace) {
-      console.error(`❌ Campo numero_marketplace ausente. Payload content completo:`, JSON.stringify(content, null, 2));
-      throw new Error(`numero_marketplace não encontrado no payload AnyMarket. ID anymarket: ${idAnyMarket}`);
+    if (!idAnyMarket) {
+      console.error(`❌ Webhook AnyMarket sem content.id. Payload completo:`, JSON.stringify(payload, null, 2));
+      return;
     }
 
-    // Salvar o mapeamento
+    // 1️⃣ BUSCAR DADOS COMPLETOS NA API (webhook só entrega o ID)
+    const dadosCompletos = await anymarketApi.buscarDetalhesPedido(idAnyMarket);
+    const infoRelevante = anymarketApi.extrairInfoRelevante(dadosCompletos);
+
+    if (!infoRelevante) {
+      console.warn(`⚠️ Não conseguiu extrair info do pedido AnyMarket ${idAnyMarket}`);
+      return;
+    }
+
+    // 2️⃣ numero_marketplace VEM DA API, não do webhook
+    const numeroMarketplace = infoRelevante.numero_marketplace;
+
+    if (!numeroMarketplace) {
+      console.error(`❌ numero_marketplace ausente mesmo após busca na API AnyMarket ${idAnyMarket}. Dados recebidos:`, JSON.stringify(infoRelevante, null, 2));
+      return;
+    }
+
+    console.log(`✅ Marketplace ID obtido da API: ${numeroMarketplace}`);
+
+    // 3️⃣ SALVAR MAPEAMENTO
     await pool.query(
       `INSERT INTO pedidos_mapeamento 
        (id_anymarket, numero_marketplace, marketplace_origem)
@@ -41,21 +48,13 @@ const processAnyMarketEvent = async (payload) => {
        ON CONFLICT (numero_marketplace) DO UPDATE SET
          id_anymarket = $1,
          atualizado_em = NOW()`,
-      [idAnyMarket, numeroMarketplace, content.marketPlace || content.marketplace || null]
+      [idAnyMarket, numeroMarketplace, infoRelevante.marketplace]
     );
 
-    // Buscar dados completos
-    const dadosCompletos = await anymarketApi.buscarDetalhesPedido(idAnyMarket);
-    const infoRelevante = anymarketApi.extrairInfoRelevante(dadosCompletos);
-
-    if (!infoRelevante) {
-      console.warn(`⚠️ Não conseguiu extrair info do pedido AnyMarket ${idAnyMarket}`);
-      await salvarWebhookAnyMarket(idAnyMarket, numeroMarketplace, event, payload);
-      return;
-    }
-
+    // 4️⃣ NORMALIZAR STATUS
     const normalizedStatus = STATUS_MAP.ANYMARKET[event] || event;
 
+    // 5️⃣ SALVAR TRACKING
     await pool.query(
       `INSERT INTO tracking_events 
        (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
@@ -76,8 +75,9 @@ const processAnyMarketEvent = async (payload) => {
       ]
     );
 
-    console.log(`✅ AnyMarket ${numeroMarketplace} armazenado`);
+    console.log(`✅ AnyMarket ${numeroMarketplace} armazenado com status ${normalizedStatus}`);
 
+    // 6️⃣ VERIFICAR ANOMALIA: pedido não integrou na JET
     const jetCheck = await pool.query(
       `SELECT id FROM tracking_events 
        WHERE pedido_id = $1 AND origem = $2 LIMIT 1`,
@@ -93,39 +93,11 @@ const processAnyMarketEvent = async (payload) => {
       );
     }
 
+    // 7️⃣ VALIDAR PIPELINE COMPLETO
     await anomalyDetector.checkPipelineStatus(numeroMarketplace);
 
   } catch (error) {
     console.error('❌ Erro ao processar AnyMarket:', error.message);
-  }
-};
-
-const salvarWebhookAnyMarket = async (idAnyMarket, numeroMarketplace, event, payload) => {
-  try {
-    const normalizedStatus = STATUS_MAP.ANYMARKET[event] || event;
-
-    await pool.query(
-      `INSERT INTO tracking_events 
-       (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (pedido_id, origem) DO UPDATE SET
-         status = EXCLUDED.status,
-         timestamp = EXCLUDED.timestamp,
-         payload = EXCLUDED.payload`,
-      [
-        uuidv4(),
-        numeroMarketplace,
-        'ANYMARKET',
-        normalizedStatus,
-        new Date(),
-        JSON.stringify(payload),
-        JSON.stringify(payload)
-      ]
-    );
-
-    console.log(`✅ AnyMarket ${numeroMarketplace} armazenado (sem dados da API)`);
-  } catch (error) {
-    console.error('❌ Erro ao salvar webhook AnyMarket:', error.message);
   }
 };
 
@@ -234,7 +206,7 @@ const salvarWebhookJET = async (idInterno, numeroPedido, event, eventOccurredAt,
 
 const processOnclickEvent = async (payload) => {
   try {
-    const { pedido_id, status, invoice_number } = payload;
+    const { pedido_id, status } = payload;
 
     console.log(`📥 WEBHOOK ONCLICK RECEBIDO!`);
     console.log(`🔄 Processando Onclick: ${pedido_id} - ${status}`);
