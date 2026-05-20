@@ -10,12 +10,7 @@ const dashboardController = {
 
       // Total por plataforma
       const totalPorPlataforma = await pool.query(`
-        SELECT 
-          origem,
-          COUNT(DISTINCT pedido_id) as total,
-          COUNT(CASE WHEN status = 'PAGO' THEN 1 END) as pago,
-          COUNT(CASE WHEN status = 'ENVIADO' THEN 1 END) as enviado,
-          COUNT(CASE WHEN status = 'FATURADO' THEN 1 END) as faturado
+        SELECT origem, COUNT(DISTINCT pedido_id) as total
         FROM tracking_events
         WHERE timestamp > NOW() - INTERVAL '30 days'
         GROUP BY origem
@@ -47,14 +42,13 @@ const dashboardController = {
 
       // Pedidos últimas 24h
       const ultimas24h = await pool.query(`
-        SELECT 
-          COUNT(DISTINCT pedido_id) as total,
-          origem
+        SELECT COUNT(DISTINCT pedido_id) as total, origem
         FROM tracking_events
         WHERE timestamp > NOW() - INTERVAL '24 hours'
         GROUP BY origem
       `);
 
+      // ✅ FORMATO CORRETO PARA O FRONTEND
       res.json({
         totalPorPlataforma: totalPorPlataforma.rows,
         anomalias: anomalias.rows[0],
@@ -71,24 +65,15 @@ const dashboardController = {
   // 🚨 ANOMALIAS
   async getAnomalias(req, res) {
     try {
-      const limit = parseInt(req.query.limit) || 10;
+      const limit = parseInt(req.query.limit) || 50;
       const resolvido = req.query.resolvido === 'false' ? false : null;
 
       console.log(`🚨 Buscando anomalias (limit: ${limit})...`);
 
       let query = `
-        SELECT 
-          id,
-          pedido_id,
-          tipo_anomalia,
-          descricao_anomalia,
-          origem,
-          criado_em,
-          resolvido,
-          resolvido_em
+        SELECT id, pedido_id, tipo_anomalia, descricao_anomalia, origem, criado_em, resolvido, resolvido_em
         FROM anomalias
       `;
-
       const params = [];
 
       if (resolvido !== null) {
@@ -101,8 +86,8 @@ const dashboardController = {
 
       const result = await pool.query(query, params);
 
+      // ✅ FORMATO CORRETO PARA O FRONTEND
       res.json({
-        total: result.rows.length,
         anomalias: result.rows
       });
 
@@ -128,19 +113,9 @@ const dashboardController = {
       }
 
       const result = await pool.query(`
-        SELECT 
-          pedido_id,
-          status_marketplace,
-          status_anymarket,
-          status_jet,
-          status_onclick,
-          anomalia,
-          tipo_anomalia,
-          descricao_anomalia,
-          marketplace_origem,
-          valor_total,
-          cliente_nome,
-          atualizado_em
+        SELECT pedido_id, status_marketplace, status_anymarket, status_jet, status_onclick, 
+               anomalia, tipo_anomalia, descricao_anomalia, marketplace_origem, valor_total, 
+               cliente_nome, atualizado_em
         FROM pedidos_pipeline
         ${whereClause}
         ORDER BY atualizado_em DESC
@@ -148,14 +123,21 @@ const dashboardController = {
       `, [limit, offset]);
 
       const countResult = await pool.query(`
-        SELECT COUNT(*) as total FROM pedidos_pipeline ${whereClause}
+        SELECT COUNT(*) as total
+        FROM pedidos_pipeline
+        ${whereClause}
       `);
 
+      const total = parseInt(countResult.rows[0].total);
+      const totalPages = Math.ceil(total / limit);
+
+      // ✅ FORMATO CORRETO PARA O FRONTEND
       res.json({
+        pedidos: result.rows,
         page,
         limit,
-        total: parseInt(countResult.rows[0].total),
-        pedidos: result.rows
+        total,
+        totalPages
       });
 
     } catch (error) {
@@ -178,11 +160,7 @@ const dashboardController = {
 
       // Buscar eventos
       const eventos = await pool.query(`
-        SELECT 
-          origem,
-          status,
-          timestamp,
-          dados_completos
+        SELECT origem, status, timestamp, dados_completos
         FROM tracking_events
         WHERE pedido_id = $1
         ORDER BY timestamp DESC
@@ -193,6 +171,7 @@ const dashboardController = {
         SELECT * FROM pedidos_mapeamento WHERE numero_marketplace = $1
       `, [numeroMarketplace]);
 
+      // ✅ FORMATO CORRETO PARA O FRONTEND
       res.json({
         pipeline: pipeline.rows[0],
         eventos: eventos.rows,
@@ -211,10 +190,7 @@ const dashboardController = {
       console.log('📈 Buscando dados para gráfico...');
 
       const result = await pool.query(`
-        SELECT 
-          origem,
-          status,
-          COUNT(DISTINCT pedido_id) as total
+        SELECT origem, status, COUNT(DISTINCT pedido_id) as total
         FROM tracking_events
         WHERE timestamp > NOW() - INTERVAL '30 days'
         GROUP BY origem, status
@@ -229,10 +205,11 @@ const dashboardController = {
         }
         grafico[row.origem].push({
           status: row.status,
-          total: row.total
+          total: parseInt(row.total)
         });
       });
 
+      // ✅ FORMATO CORRETO PARA O FRONTEND
       res.json(grafico);
 
     } catch (error) {
