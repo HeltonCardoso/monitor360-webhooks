@@ -19,7 +19,8 @@ const STATUS_MAP = {
   JET: {
     'Pedido.Pago': 'PAGO',
     'Pedido.Aprovado': 'APROVADO',
-    'Pedido.Enviado': 'ENVIADO',
+    'Pedido.EmProducao': 'EM_PRODUCAO',   // entrou na Onclick
+    'Pedido.Enviado': 'ENVIADO',           // faturou e saiu da Onclick
     'Pedido.Entregue': 'ENTREGUE',
     'Pedido.Cancelado': 'CANCELADO',
     'new': 'NOVO',
@@ -27,6 +28,11 @@ const STATUS_MAP = {
     'shipped': 'ENVIADO',
     'delivered': 'ENTREGUE',
     'cancelled': 'CANCELADO'
+  },
+  // Status da Onclick inferidos via JET (não recebemos webhooks diretos)
+  ONCLICK_INFERIDO: {
+    'Pedido.EmProducao': 'EM_PRODUCAO',    // JET → Onclick recebeu o pedido
+    'Pedido.Enviado': 'FATURADO_ENVIADO'   // JET → Onclick faturou e enviou
   },
   ONCLICK: {
     'draft': 'RASCUNHO',
