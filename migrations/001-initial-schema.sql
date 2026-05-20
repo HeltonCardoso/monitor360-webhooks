@@ -55,6 +55,7 @@ ALTER TABLE pedidos_mapeamento ALTER COLUMN id_onclick TYPE VARCHAR(50) USING id
 
 -- Corrige pedidos_items
 ALTER TABLE pedidos_items DROP CONSTRAINT IF EXISTS fk_pedidos_items_pedido_id;
+ALTER TABLE pedidos_items DROP CONSTRAINT IF EXISTS pedidos_items_pedido_id_fkey;
 ALTER TABLE pedidos_items ALTER COLUMN pedido_id TYPE VARCHAR(100) USING pedido_id::VARCHAR;
 
 -- TABELA DE MAPEAMENTO ENTRE PLATAFORMAS
