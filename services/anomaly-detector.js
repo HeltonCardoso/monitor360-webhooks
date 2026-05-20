@@ -1,7 +1,7 @@
+// services/anomaly-detector.js
 const pool = require('../config/database');
 const notification = require('./notification');
-const { SLA_CONFIG, PIPELINE_STAGES } = require('../config/constants');
-
+const { SLA_CONFIG, PIPELINE_STAGES, PIPELINE_STAGES_RETORNO, SLA_ENTRE_ESTAGIOS } = require('../config/constants');
 
 const createAnomaly = async (pedido_id, tipo, origem_falha, marketplace) => {
   try {
@@ -12,7 +12,6 @@ const createAnomaly = async (pedido_id, tipo, origem_falha, marketplace) => {
       [pedido_id, tipo, origem_falha, marketplace]
     );
 
-    // Enviar notificação
     const mensagem = `
       🚨 ANOMALIA DETECTADA
       Pedido: ${pedido_id}
@@ -29,36 +28,94 @@ const createAnomaly = async (pedido_id, tipo, origem_falha, marketplace) => {
 
 const checkPipelineStatus = async (pedido_id) => {
   try {
+    // Busca todos os eventos do pedido ordenados por tempo
     const events = await pool.query(
-      `SELECT origem, MAX(timestamp) as ultimo_evento
+      `SELECT origem, status, MAX(timestamp) as ultimo_evento
        FROM tracking_events
        WHERE pedido_id = $1
-       GROUP BY origem
-       ORDER BY ultimo_evento DESC`,
+       GROUP BY origem, status
+       ORDER BY ultimo_evento ASC`,
       [pedido_id]
     );
 
+    if (!events.rows.length) return;
+
     const origens = events.rows.map(r => r.origem);
-    const ultimoEvento = events.rows[0]?.ultimo_evento;
+    const agora = Date.now();
 
-    // Verificar se está travado
-    const horasParado = (Date.now() - new Date(ultimoEvento)) / (1000 * 60 * 60);
-    if (horasParado > 4) {
-      await createAnomaly(
-        pedido_id,
-        'TRAVADO',
-        origens[0],
-        null
-      );
+    // ─── Monta visão do pipeline ───────────────────────────────────────────
+    const todoEstagio = [...PIPELINE_STAGES, ...PIPELINE_STAGES_RETORNO];
+    const pipeline = todoEstagio.map(estagio => {
+      const evento = events.rows.find(r => r.origem === estagio);
+      return {
+        estagio,
+        concluido: !!evento,
+        status: evento?.status || null,
+        em: evento?.ultimo_evento || null
+      };
+    });
+
+    // Encontra onde o pedido está agora
+    const ultimoConcluido = pipeline.filter(p => p.concluido).pop();
+    const proximoPendente = pipeline.find(p => !p.concluido);
+
+    console.log(`\n📊 Pipeline do pedido ${pedido_id}:`);
+    pipeline.forEach(p => {
+      const icone = p.concluido ? '✅' : '⏳';
+      const tempo = p.em ? new Date(p.em).toLocaleString('pt-BR') : '-';
+      const status = p.status ? ` [${p.status}]` : '';
+      console.log(`   ${icone} ${p.estagio}${status} ${p.em ? `(${tempo})` : ''}`);
+    });
+
+    if (proximoPendente) {
+      console.log(`   ➡️  Aguardando: ${proximoPendente.estagio}\n`);
+    } else {
+      console.log(`   🏁 Pedido com pipeline completo!\n`);
     }
 
-    // Verificar sequência esperada
-    const esperado = PIPELINE_STAGES;
-    const faltando = esperado.filter(s => !origens.includes(s));
+    // ─── Checagem de travamento entre estágios ─────────────────────────────
 
-    if (faltando.length > 0) {
-      console.log(`Pedido ${pedido_id} faltando estágios: ${faltando.join(', ')}`);
+    // 1. AnyMarket recebido mas JET ainda não integrou
+    const temAnymarket = origens.includes('ANYMARKET');
+    const temJet = origens.includes('JET');
+    const temOnclick = origens.includes('ONCLICK');
+
+    if (temAnymarket && !temJet) {
+      const eventoAnymarket = events.rows.find(r => r.origem === 'ANYMARKET');
+      const horasEsperando = (agora - new Date(eventoAnymarket.ultimo_evento)) / (1000 * 60 * 60);
+      const sla = SLA_ENTRE_ESTAGIOS.ANYMARKET_para_JET.horas;
+
+      if (horasEsperando > sla) {
+        console.warn(`⚠️ Pedido ${pedido_id} travado em ANYMARKET há ${horasEsperando.toFixed(1)}h (SLA: ${sla}h)`);
+        await createAnomaly(pedido_id, 'NAO_INTEGROU_JET', 'ANYMARKET', null);
+      }
     }
+
+    // 2. JET integrou mas Onclick ainda não faturou
+    if (temJet && !temOnclick) {
+      const eventoJet = events.rows.find(r => r.origem === 'JET');
+      const horasEsperando = (agora - new Date(eventoJet.ultimo_evento)) / (1000 * 60 * 60);
+      const sla = SLA_ENTRE_ESTAGIOS.JET_para_ONCLICK.horas;
+
+      if (horasEsperando > sla) {
+        console.warn(`⚠️ Pedido ${pedido_id} travado em JET há ${horasEsperando.toFixed(1)}h (SLA: ${sla}h)`);
+        await createAnomaly(pedido_id, 'NAO_FATUROU_ONCLICK', 'JET', null);
+      }
+    }
+
+    // 3. Onclick faturou mas não houve retorno para a JET
+    if (temOnclick) {
+      const eventoOnclick = events.rows.find(r => r.origem === 'ONCLICK');
+      const horasEsperando = (agora - new Date(eventoOnclick.ultimo_evento)) / (1000 * 60 * 60);
+      const sla = SLA_ENTRE_ESTAGIOS.ONCLICK_para_RETORNO.horas;
+      const temRetornoJet = origens.includes('RETORNO_JET');
+
+      if (!temRetornoJet && horasEsperando > sla) {
+        console.warn(`⚠️ Pedido ${pedido_id} faturado mas sem retorno à JET há ${horasEsperando.toFixed(1)}h (SLA: ${sla}h)`);
+        await createAnomaly(pedido_id, 'FATUROU_NAO_RETORNOU', 'ONCLICK', null);
+      }
+    }
+
   } catch (error) {
     console.error('Erro ao verificar pipeline:', error);
   }
