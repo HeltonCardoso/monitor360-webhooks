@@ -40,6 +40,23 @@ CREATE TABLE IF NOT EXISTS anomalias (
   UNIQUE(pedido_id, tipo)
 );
 
+-- Garante colunas mesmo se a tabela ja existia sem elas
+ALTER TABLE anomalias ADD COLUMN IF NOT EXISTS resolvida BOOLEAN DEFAULT FALSE;
+ALTER TABLE anomalias ADD COLUMN IF NOT EXISTS resolvida_em TIMESTAMP;
+ALTER TABLE anomalias ADD COLUMN IF NOT EXISTS tempo_atraso_horas INT;
+
+-- Garante colunas em tracking_events
+ALTER TABLE tracking_events DROP CONSTRAINT IF EXISTS tracking_events_pedido_id_origem_key;
+
+-- Corrige tipos em pedidos_mapeamento se ja existia com BIGINT
+ALTER TABLE pedidos_mapeamento ALTER COLUMN id_anymarket TYPE VARCHAR(50) USING id_anymarket::VARCHAR;
+ALTER TABLE pedidos_mapeamento ALTER COLUMN id_jet TYPE VARCHAR(50) USING id_jet::VARCHAR;
+ALTER TABLE pedidos_mapeamento ALTER COLUMN id_onclick TYPE VARCHAR(50) USING id_onclick::VARCHAR;
+
+-- Corrige pedidos_items
+ALTER TABLE pedidos_items DROP CONSTRAINT IF EXISTS fk_pedidos_items_pedido_id;
+ALTER TABLE pedidos_items ALTER COLUMN pedido_id TYPE VARCHAR(100) USING pedido_id::VARCHAR;
+
 -- TABELA DE MAPEAMENTO ENTRE PLATAFORMAS
 CREATE TABLE IF NOT EXISTS pedidos_mapeamento (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
