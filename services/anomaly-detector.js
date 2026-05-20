@@ -43,6 +43,14 @@ const checkPipelineStatus = async (pedido_id) => {
     const origens = events.rows.map(r => r.origem);
     const agora = Date.now();
 
+    // Não verificar pipeline de pedidos já finalizados
+    const statusFinais = ['ENTREGUE', 'CANCELADO'];
+    const statusAtual = events.rows.find(r => r.origem === 'ANYMARKET')?.status || '';
+    if (statusFinais.includes(statusAtual)) {
+      console.log(`ℹ️  Pedido ${pedido_id} finalizado (${statusAtual}) — pipeline encerrado`);
+      return;
+    }
+
     // ─── Monta visão do pipeline ───────────────────────────────────────────
     const todoEstagio = [...PIPELINE_STAGES, ...PIPELINE_STAGES_RETORNO];
     const pipeline = todoEstagio.map(estagio => {

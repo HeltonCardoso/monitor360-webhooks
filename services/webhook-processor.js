@@ -13,7 +13,7 @@ const { v4: uuidv4 } = require('uuid');
 const recentlyProcessed = new Map();
 const isDuplicate = (key) => {
   const last = recentlyProcessed.get(key);
-  if (last && Date.now() - last < 10000) return true; // 10 segundos
+  if (last && Date.now() - last < 30000) return true; // 30 segundos
   recentlyProcessed.set(key, Date.now());
   return false;
 };
@@ -128,19 +128,28 @@ const processAnyMarketEvent = async (payload) => {
     }
 
     // 7️⃣ VERIFICAR ANOMALIA: pedido não integrou na JET
-    const jetCheck = await pool.query(
-      `SELECT id FROM tracking_events 
-       WHERE pedido_id = $1 AND origem = $2 LIMIT 1`,
-      [numeroMarketplace, 'JET']
-    );
+    // Ignora pedidos já finalizados (ENTREGUE/CANCELADO) — são históricos que chegam
+    // via webhook retroativo e não precisam de rastreamento de pipeline
+    const statusFinais = ['ENTREGUE', 'CANCELADO', 'CONCLUDED', 'CANCELED'];
+    const isPedidoFinal = statusFinais.includes(event) || statusFinais.includes(normalizedStatus);
 
-    if (!jetCheck.rows.length) {
-      await anomalyDetector.createAnomaly(
-        numeroMarketplace,
-        'NAO_INTEGROU_JET',
-        'ANYMARKET',
-        infoRelevante.marketplace
+    if (!isPedidoFinal) {
+      const jetCheck = await pool.query(
+        `SELECT id FROM tracking_events 
+         WHERE pedido_id = $1 AND origem = $2 LIMIT 1`,
+        [numeroMarketplace, 'JET']
       );
+
+      if (!jetCheck.rows.length) {
+        await anomalyDetector.createAnomaly(
+          numeroMarketplace,
+          'NAO_INTEGROU_JET',
+          'ANYMARKET',
+          infoRelevante.marketplace
+        );
+      }
+    } else {
+      console.log(`ℹ️  Pedido ${numeroMarketplace} já finalizado (${normalizedStatus}) — ignorando verificação de pipeline`);
     }
 
     // 8️⃣ ANOMALIA: ficou FATURADO depois que JET enviou (exceto ME2)
