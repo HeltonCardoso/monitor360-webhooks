@@ -4,19 +4,11 @@ const express = require('express');
 const router = express.Router();
 const dashboardController = require('../controllers/dashboardController');
 
-// 📊 Métricas gerais
+// 📊 APIs JSON
 router.get('/api/metricas', dashboardController.getMetricasGerais);
-
-// 🚨 Anomalias
 router.get('/api/anomalias', dashboardController.getAnomalias);
-
-// 📋 Pedidos com pipeline
 router.get('/api/pedidos', dashboardController.getPedidosPipeline);
-
-// 🔍 Detalhes do pedido
 router.get('/api/pedidos/:numeroMarketplace', dashboardController.getPedidoDetalhes);
-
-// 📈 Gráfico
 router.get('/api/grafico/status', dashboardController.getGraficoStatusPorPlataforma);
 
 // 🎨 Páginas HTML

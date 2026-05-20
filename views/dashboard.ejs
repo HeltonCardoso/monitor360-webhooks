@@ -376,25 +376,21 @@
         const response = await fetch('/api/metricas');
         const data = await response.json();
 
-        // Atualizar cards
-        data.totalPorPlataforma.forEach(item => {
-          const id = `total-${item.origem.toLowerCase()}`;
-          document.getElementById(id).textContent = item.total;
-        });
+        if (!data.success) {
+          console.error('Erro na API:', data.error);
+          return;
+        }
 
-        document.getElementById('total-anomalias').textContent = data.anomalias.nao_resolvidas;
+        // Atualizar cards
+        document.getElementById('total-anymarket').textContent = data.data.ANYMARKET || 0;
+        document.getElementById('total-jet').textContent = data.data.JET || 0;
+        document.getElementById('total-onclick').textContent = data.data.ONCLICK || 0;
+        document.getElementById('total-anomalias').textContent = data.data.anomaliasNaoResolvidas || 0;
 
         // Taxa de sincronização
-        const taxa = data.sincronizacao.taxa_sincronizacao_jet || 0;
+        const taxa = data.data.taxaSincronizacaoJet || 0;
         document.getElementById('taxa-sincronizacao').style.width = taxa + '%';
         document.getElementById('taxa-texto').textContent = taxa.toFixed(1) + '%';
-
-        // Últimas 24h
-        let html24h = '';
-        data.ultimas24h.forEach(item => {
-          html24h += `<p><strong>${item.origem}:</strong> ${item.total} pedidos</p>`;
-        });
-        document.getElementById('ultimas24h').innerHTML = html24h;
 
       } catch (error) {
         console.error('Erro ao carregar métricas:', error);
@@ -404,8 +400,13 @@
     // Carregar anomalias
     async function carregarAnomalias() {
       try {
-        const response = await fetch('/api/anomalias?limit=5&resolvido=false');
+        const response = await fetch('/api/anomalias?limit=5&resolvida=false');
         const data = await response.json();
+
+        if (!data.success) {
+          console.error('Erro na API:', data.error);
+          return;
+        }
 
         const tbody = document.querySelector('#tabelaAnomalias tbody');
         tbody.innerHTML = '';
@@ -419,13 +420,11 @@
           const row = `
             <tr>
               <td><strong>${anomalia.pedido_id}</strong></td>
-              <td><span class="anomalia-badge">${anomalia.tipo_anomalia}</span></td>
-              <td>${anomalia.descricao_anomalia}</td>
-              <td>${anomalia.origem}</td>
+              <td><span class="anomalia-badge">${anomalia.tipo}</span></td>
+              <td>-</td>
+              <td>${anomalia.origem || '-'}</td>
               <td>${new Date(anomalia.criado_em).toLocaleString('pt-BR')}</td>
-              <td>
-                <span class="badge bg-danger">Não resolvida</span>
-              </td>
+              <td><span class="badge bg-danger">Não resolvida</span></td>
             </tr>
           `;
           tbody.innerHTML += row;
@@ -442,22 +441,27 @@
         const response = await fetch('/api/grafico/status');
         const data = await response.json();
 
+        if (!data.success) {
+          console.error('Erro na API:', data.error);
+          return;
+        }
+
         const labels = [];
         const datasets = [];
-        const cores = ['#27ae60', '#3498db', '#e74c3c', '#f39c12'];
+        const cores = ['#27ae60', '#3498db', '#e74c3c'];
+        const plataformas = ['ANYMARKET', 'JET', 'ONCLICK'];
 
-        Object.keys(data).forEach((plataforma, index) => {
-          const statusData = data[plataforma];
+        plataformas.forEach((plataforma, index) => {
+          const statusData = data[plataforma] || [];
+          if (labels.length === 0 && statusData.length > 0) {
+            labels.push(...statusData.map(s => s.status));
+          }
           datasets.push({
             label: plataforma,
             data: statusData.map(s => s.total),
-            backgroundColor: cores[index % cores.length]
+            backgroundColor: cores[index]
           });
         });
-
-        if (datasets.length > 0) {
-          labels.push(...data[Object.keys(data)[0]].map(s => s.status));
-        }
 
         const ctx = document.getElementById('graficoStatus').getContext('2d');
         new Chart(ctx, {

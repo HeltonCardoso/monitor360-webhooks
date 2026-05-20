@@ -1,222 +1,172 @@
-// controllers/dashboardController.js
-
 const pool = require('../config/database');
 
-const dashboardController = {
-  // 📊 MÉTRICAS GERAIS
+const DashboardController = {
   async getMetricasGerais(req, res) {
     try {
-      console.log('📊 Buscando métricas gerais...');
-
-      // Total por plataforma
-      const totalPorPlataforma = await pool.query(`
-        SELECT origem, COUNT(DISTINCT pedido_id) as total
+      // Count distinct pedido_id per origem
+      const countOrigemQuery = `
+        SELECT origem, COUNT(DISTINCT pedido_id) AS total
         FROM tracking_events
-        WHERE timestamp > NOW() - INTERVAL '30 days'
+        WHERE origem IN ('ANYMARKET', 'JET', 'ONCLICK')
         GROUP BY origem
-        ORDER BY total DESC
-      `);
-
-      // Total de anomalias
-      const anomalias = await pool.query(`
-        SELECT 
-          COUNT(*) as total,
-          COUNT(CASE WHEN resolvido = false THEN 1 END) as nao_resolvidas
-        FROM anomalias
-      `);
-
-      // Taxa de sincronização
-      const sincronizacao = await pool.query(`
-        SELECT 
-          COUNT(DISTINCT pedido_id) as total_pedidos,
-          COUNT(DISTINCT CASE WHEN origem = 'ANYMARKET' THEN pedido_id END) as em_anymarket,
-          COUNT(DISTINCT CASE WHEN origem = 'JET' THEN pedido_id END) as em_jet,
-          COUNT(DISTINCT CASE WHEN origem = 'ONCLICK' THEN pedido_id END) as em_onclick,
-          ROUND(
-            (COUNT(DISTINCT CASE WHEN origem = 'JET' THEN pedido_id END)::NUMERIC / 
-             COUNT(DISTINCT pedido_id) * 100)::NUMERIC, 2
-          ) as taxa_sincronizacao_jet
-        FROM tracking_events
-        WHERE timestamp > NOW() - INTERVAL '7 days'
-      `);
-
-      // Pedidos últimas 24h
-      const ultimas24h = await pool.query(`
-        SELECT COUNT(DISTINCT pedido_id) as total, origem
-        FROM tracking_events
-        WHERE timestamp > NOW() - INTERVAL '24 hours'
-        GROUP BY origem
-      `);
-
-      // ✅ FORMATO CORRETO PARA O FRONTEND
-      res.json({
-        totalPorPlataforma: totalPorPlataforma.rows,
-        anomalias: anomalias.rows[0],
-        sincronizacao: sincronizacao.rows[0],
-        ultimas24h: ultimas24h.rows
+      `;
+      const origemResult = await pool.query(countOrigemQuery);
+      const metricas = { ANYMARKET: 0, JET: 0, ONCLICK: 0 };
+      origemResult.rows.forEach(row => {
+        metricas[row.origem] = parseInt(row.total, 10);
       });
 
+      // Count unresolved anomalies
+      const anomaliasQuery = `SELECT COUNT(*) AS total FROM anomalias WHERE resolvida = false`;
+      const anomaliasResult = await pool.query(anomaliasQuery);
+      const anomaliasNaoResolvidas = parseInt(anomaliasResult.rows[0].total, 10);
+
+      // Calculate taxa_sincronizacao_jet
+      const totalPedidosQuery = `
+        SELECT COUNT(DISTINCT pedido_id) AS total FROM tracking_events
+        WHERE origem IN ('ANYMARKET', 'JET', 'ONCLICK')
+      `;
+      const totalPedidosResult = await pool.query(totalPedidosQuery);
+      const totalPedidos = parseInt(totalPedidosResult.rows[0].total, 10);
+      const jetPedidos = parseInt(metricas.JET, 10);
+      const taxaSincronizacaoJet = totalPedidos > 0 ? (jetPedidos / totalPedidos) * 100 : 0;
+
+      // Count pedidos last 24h per origem
+      const last24hQuery = `
+        SELECT origem, COUNT(DISTINCT pedido_id) AS total
+        FROM tracking_events
+        WHERE criado_em >= NOW() - INTERVAL '24 hours'
+        GROUP BY origem
+      `;
+      const last24hResult = await pool.query(last24hQuery);
+      const pedidos24h = { ANYMARKET: 0, JET: 0, ONCLICK: 0 };
+      last24hResult.rows.forEach(row => {
+        pedidos24h[row.origem] = parseInt(row.total, 10);
+      });
+
+      console.log('Metricas Gerais fetched successfully');
+      res.json({
+        success: true,
+        data: {
+          ANYMARKET: metricas.ANYMARKET,
+          JET: metricas.JET,
+          ONCLICK: metricas.ONCLICK,
+          anomaliasNaoResolvidas,
+          taxaSincronizacaoJet: parseFloat(taxaSincronizacaoJet.toFixed(2)),
+          pedidos24h
+        }
+      });
     } catch (error) {
-      console.error('❌ Erro ao buscar métricas:', error.message);
-      res.status(500).json({ error: error.message });
+      console.error('Error in getMetricasGerais:', error);
+      res.status(500).json({ success: false, error: 'Erro ao obter métricas gerais.' });
     }
   },
 
-  // 🚨 ANOMALIAS
   async getAnomalias(req, res) {
     try {
-      const limit = parseInt(req.query.limit) || 50;
-      const resolvido = req.query.resolvido === 'false' ? false : null;
-
-      console.log(`🚨 Buscando anomalias (limit: ${limit})...`);
-
+      const { limit = 10, resolvida } = req.query;
       let query = `
-        SELECT id, pedido_id, tipo_anomalia, descricao_anomalia, origem, criado_em, resolvido, resolvido_em
+        SELECT id, pedido_id, tipo, origem_falha AS origem, criado_em, resolvida
         FROM anomalias
+        WHERE 1=1
       `;
       const params = [];
-
-      if (resolvido !== null) {
-        query += ` WHERE resolvido = $1`;
-        params.push(resolvido);
+      if (resolvida !== undefined) {
+        query += ' AND resolvida = $1';
+        params.push(resolvida === 'true');
       }
-
-      query += ` ORDER BY criado_em DESC LIMIT $${params.length + 1}`;
-      params.push(limit);
-
+      query += ' ORDER BY criado_em DESC LIMIT $' + (params.length + 1);
+      params.push(parseInt(limit, 10));
       const result = await pool.query(query, params);
-
-      // ✅ FORMATO CORRETO PARA O FRONTEND
-      res.json({
-        anomalias: result.rows
-      });
-
+      console.log('Anomalias fetched successfully');
+      res.json({ success: true, anomalias: result.rows });
     } catch (error) {
-      console.error('❌ Erro ao buscar anomalias:', error.message);
-      res.status(500).json({ error: error.message });
+      console.error('Error in getAnomalias:', error);
+      res.status(500).json({ success: false, error: 'Erro ao obter anomalias.' });
     }
   },
 
-  // 📋 PEDIDOS COM PIPELINE
   async getPedidosPipeline(req, res) {
     try {
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 20;
+      const { page = 1, limit = 10 } = req.query;
       const offset = (page - 1) * limit;
-      const anomaliaOnly = req.query.anomalia === 'true';
-
-      console.log(`📋 Buscando pedidos (page: ${page}, limit: ${limit})...`);
-
-      let whereClause = '';
-      if (anomaliaOnly) {
-        whereClause = 'WHERE anomalia = true';
-      }
-
-      const result = await pool.query(`
-        SELECT pedido_id, status_marketplace, status_anymarket, status_jet, status_onclick, 
-               anomalia, tipo_anomalia, descricao_anomalia, marketplace_origem, valor_total, 
-               cliente_nome, atualizado_em
-        FROM pedidos_pipeline
-        ${whereClause}
-        ORDER BY atualizado_em DESC
-        LIMIT $1 OFFSET $2
-      `, [limit, offset]);
-
-      const countResult = await pool.query(`
-        SELECT COUNT(*) as total
-        FROM pedidos_pipeline
-        ${whereClause}
-      `);
-
-      const total = parseInt(countResult.rows[0].total);
+      // Get total distinct pedidos
+      const countQuery = `
+        SELECT COUNT(DISTINCT pedido_id) AS total FROM tracking_events
+        WHERE origem IN ('ANYMARKET', 'JET', 'ONCLICK')
+      `;
+      const countResult = await pool.query(countQuery);
+      const total = parseInt(countResult.rows[0].total, 10);
       const totalPages = Math.ceil(total / limit);
 
-      // ✅ FORMATO CORRETO PARA O FRONTEND
+      // Get distinct pedidos with latest status per origem
+      const pedidosQuery = `
+        SELECT DISTINCT ON (origem, pedido_id) pedido_id, origem, status, criado_em
+        FROM tracking_events
+        WHERE origem IN ('ANYMARKET', 'JET', 'ONCLICK')
+        ORDER BY origem, pedido_id, criado_em DESC
+        LIMIT $1 OFFSET $2
+      `;
+      const pedidosResult = await pool.query(pedidosQuery, [parseInt(limit, 10), parseInt(offset, 10)]);
+      console.log('Pedidos pipeline fetched successfully');
       res.json({
-        pedidos: result.rows,
-        page,
-        limit,
+        success: true,
+        pedidos: pedidosResult.rows,
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
         total,
         totalPages
       });
-
     } catch (error) {
-      console.error('❌ Erro ao buscar pedidos:', error.message);
-      res.status(500).json({ error: error.message });
+      console.error('Error in getPedidosPipeline:', error);
+      res.status(500).json({ success: false, error: 'Erro ao obter pipeline de pedidos.' });
     }
   },
 
-  // 🔍 DETALHES DO PEDIDO
   async getPedidoDetalhes(req, res) {
     try {
       const { numeroMarketplace } = req.params;
-
-      console.log(`🔍 Buscando detalhes do pedido: ${numeroMarketplace}`);
-
-      // Buscar pipeline
-      const pipeline = await pool.query(`
-        SELECT * FROM pedidos_pipeline WHERE pedido_id = $1
-      `, [numeroMarketplace]);
-
-      // Buscar eventos
-      const eventos = await pool.query(`
-        SELECT origem, status, timestamp, dados_completos
-        FROM tracking_events
-        WHERE pedido_id = $1
-        ORDER BY timestamp DESC
-      `, [numeroMarketplace]);
-
-      // Buscar mapeamento
-      const mapeamento = await pool.query(`
+      // Get order mapping
+      const mapeamentoQuery = `
         SELECT * FROM pedidos_mapeamento WHERE numero_marketplace = $1
-      `, [numeroMarketplace]);
-
-      // ✅ FORMATO CORRETO PARA O FRONTEND
-      res.json({
-        pipeline: pipeline.rows[0],
-        eventos: eventos.rows,
-        mapeamento: mapeamento.rows[0]
-      });
-
+      `;
+      const mapeamentoResult = await pool.query(mapeamentoQuery, [numeroMarketplace]);
+      const mapeamento = mapeamentoResult.rows[0] || null;
+      // Get tracking events
+      const eventsQuery = `
+        SELECT * FROM tracking_events WHERE pedido_id = $1 ORDER BY criado_em ASC
+      `;
+      const eventsResult = await pool.query(eventsQuery, [numeroMarketplace]);
+      const events = eventsResult.rows;
+      console.log('Pedido detalhes fetched successfully');
+      res.json({ success: true, mapeamento, events });
     } catch (error) {
-      console.error('❌ Erro ao buscar detalhes:', error.message);
-      res.status(500).json({ error: error.message });
+      console.error('Error in getPedidoDetalhes:', error);
+      res.status(500).json({ success: false, error: 'Erro ao obter detalhes do pedido.' });
     }
   },
 
-  // 📈 GRÁFICO STATUS POR PLATAFORMA
   async getGraficoStatusPorPlataforma(req, res) {
     try {
-      console.log('📈 Buscando dados para gráfico...');
-
-      const result = await pool.query(`
-        SELECT origem, status, COUNT(DISTINCT pedido_id) as total
+      const query = `
+        SELECT origem, status, COUNT(DISTINCT pedido_id) AS total
         FROM tracking_events
-        WHERE timestamp > NOW() - INTERVAL '30 days'
+        WHERE origem IN ('ANYMARKET', 'JET', 'ONCLICK')
         GROUP BY origem, status
-        ORDER BY origem, total DESC
-      `);
-
-      // Transformar em formato para gráfico
-      const grafico = {};
+        ORDER BY origem, status
+      `;
+      const result = await pool.query(query);
+      const grouped = { ANYMARKET: [], JET: [], ONCLICK: [] };
       result.rows.forEach(row => {
-        if (!grafico[row.origem]) {
-          grafico[row.origem] = [];
-        }
-        grafico[row.origem].push({
-          status: row.status,
-          total: parseInt(row.total)
-        });
+        grouped[row.origem].push({ status: row.status, total: parseInt(row.total, 10) });
       });
-
-      // ✅ FORMATO CORRETO PARA O FRONTEND
-      res.json(grafico);
-
+      console.log('Grafico status por plataforma fetched successfully');
+      res.json({ success: true, ...grouped });
     } catch (error) {
-      console.error('❌ Erro ao buscar gráfico:', error.message);
-      res.status(500).json({ error: error.message });
+      console.error('Error in getGraficoStatusPorPlataforma:', error);
+      res.status(500).json({ success: false, error: 'Erro ao obter gráfico de status.' });
     }
   }
 };
 
-module.exports = dashboardController;
+module.exports = DashboardController;
