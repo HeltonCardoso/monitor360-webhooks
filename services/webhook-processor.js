@@ -12,12 +12,28 @@ const processAnyMarketEvent = async (payload) => {
   try {
     const { content, event } = payload;
     const idAnyMarket = content.id;
-    const numeroMarketplace = content.marketPlaceId;  // ✅ CAMPO CHAVE
+
+    // Busca o campo em todos os nomes possíveis que a AnyMarket pode enviar
+    const numeroMarketplace =
+      content.marketPlaceId   ||
+      content.marketplaceId   ||
+      content.MarketPlaceId   ||
+      content.externalId      ||
+      content.orderId         ||
+      content.numeroPedido    ||
+      null;
 
     console.log(`📥 WEBHOOK ANYMARKET RECEBIDO!`);
+    console.log(`🔍 Campos disponíveis em content:`, Object.keys(content || {}));
     console.log(`🔄 Processando AnyMarket: ${idAnyMarket} - Marketplace: ${numeroMarketplace} - ${event}`);
 
-    // ✅ SALVAR O MAPEAMENTO
+    // Abortar antes de tentar inserir com null
+    if (!numeroMarketplace) {
+      console.error(`❌ Campo numero_marketplace ausente. Payload content completo:`, JSON.stringify(content, null, 2));
+      throw new Error(`numero_marketplace não encontrado no payload AnyMarket. ID anymarket: ${idAnyMarket}`);
+    }
+
+    // Salvar o mapeamento
     await pool.query(
       `INSERT INTO pedidos_mapeamento 
        (id_anymarket, numero_marketplace, marketplace_origem)
@@ -25,24 +41,21 @@ const processAnyMarketEvent = async (payload) => {
        ON CONFLICT (numero_marketplace) DO UPDATE SET
          id_anymarket = $1,
          atualizado_em = NOW()`,
-      [idAnyMarket, numeroMarketplace, content.marketPlace]
+      [idAnyMarket, numeroMarketplace, content.marketPlace || content.marketplace || null]
     );
 
-    // ✅ BUSCAR DADOS COMPLETOS
+    // Buscar dados completos
     const dadosCompletos = await anymarketApi.buscarDetalhesPedido(idAnyMarket);
     const infoRelevante = anymarketApi.extrairInfoRelevante(dadosCompletos);
 
     if (!infoRelevante) {
       console.warn(`⚠️ Não conseguiu extrair info do pedido AnyMarket ${idAnyMarket}`);
-      // ✅ MESMO SEM INFO, SALVAR O WEBHOOK
       await salvarWebhookAnyMarket(idAnyMarket, numeroMarketplace, event, payload);
       return;
     }
 
-    // ✅ NORMALIZAR STATUS
     const normalizedStatus = STATUS_MAP.ANYMARKET[event] || event;
 
-    // ✅ SALVAR COM OS DADOS COMPLETOS
     await pool.query(
       `INSERT INTO tracking_events 
        (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
@@ -54,7 +67,7 @@ const processAnyMarketEvent = async (payload) => {
          dados_completos = EXCLUDED.dados_completos`,
       [
         uuidv4(),
-        numeroMarketplace,  // ✅ USAR numero_marketplace COMO CHAVE
+        numeroMarketplace,
         'ANYMARKET',
         normalizedStatus,
         new Date(),
@@ -65,7 +78,6 @@ const processAnyMarketEvent = async (payload) => {
 
     console.log(`✅ AnyMarket ${numeroMarketplace} armazenado`);
 
-    // ✅ VERIFICAR ANOMALIAS
     const jetCheck = await pool.query(
       `SELECT id FROM tracking_events 
        WHERE pedido_id = $1 AND origem = $2 LIMIT 1`,
@@ -81,7 +93,6 @@ const processAnyMarketEvent = async (payload) => {
       );
     }
 
-    // ✅ VALIDAR PIPELINE
     await anomalyDetector.checkPipelineStatus(numeroMarketplace);
 
   } catch (error) {
@@ -89,7 +100,6 @@ const processAnyMarketEvent = async (payload) => {
   }
 };
 
-// ✅ FUNÇÃO AUXILIAR PARA SALVAR MESMO SEM DADOS DA API
 const salvarWebhookAnyMarket = async (idAnyMarket, numeroMarketplace, event, payload) => {
   try {
     const normalizedStatus = STATUS_MAP.ANYMARKET[event] || event;
@@ -126,21 +136,17 @@ const processJETEvent = async (payload) => {
     console.log(`📥 WEBHOOK JET RECEBIDO!`);
     console.log(`🔄 Processando JET: ${idInterno} - Pedido: ${numeroPedido} - ${Event}`);
 
-    // ✅ BUSCAR DADOS COMPLETOS
     const dadosCompletos = await jetApi.buscarDetalhesPedido(numeroPedido);
     const infoRelevante = jetApi.extrairInfoRelevante(dadosCompletos);
 
     if (!infoRelevante) {
       console.warn(`⚠️ Não conseguiu extrair info do pedido JET ${numeroPedido}`);
-      // ✅ MESMO SEM INFO, SALVAR O WEBHOOK
       await salvarWebhookJET(idInterno, numeroPedido, Event, EventOccurredAt, payload);
       return;
     }
 
-    // ✅ NORMALIZAR STATUS
     const normalizedStatus = STATUS_MAP.JET[Event] || Event;
 
-    // ✅ SALVAR COM OS DADOS COMPLETOS
     await pool.query(
       `INSERT INTO tracking_events 
        (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
@@ -152,7 +158,7 @@ const processJETEvent = async (payload) => {
          dados_completos = EXCLUDED.dados_completos`,
       [
         uuidv4(),
-        infoRelevante.numero_marketplace,  // ✅ USAR numero_marketplace
+        infoRelevante.numero_marketplace,
         'JET',
         normalizedStatus,
         new Date(EventOccurredAt),
@@ -163,7 +169,6 @@ const processJETEvent = async (payload) => {
 
     console.log(`✅ JET ${numeroPedido} armazenado`);
 
-    // ✅ SALVAR MAPEAMENTO
     await pool.query(
       `INSERT INTO pedidos_mapeamento 
        (id_jet, numero_marketplace)
@@ -174,7 +179,6 @@ const processJETEvent = async (payload) => {
       [numeroPedido, infoRelevante.numero_marketplace]
     );
 
-    // ✅ VERIFICAR ANOMALIAS
     if (normalizedStatus === 'ENVIADO') {
       const onclickCheck = await pool.query(
         `SELECT id FROM tracking_events 
@@ -192,7 +196,6 @@ const processJETEvent = async (payload) => {
       }
     }
 
-    // ✅ VALIDAR PIPELINE
     await anomalyDetector.checkPipelineStatus(infoRelevante.numero_marketplace);
 
   } catch (error) {
@@ -200,7 +203,6 @@ const processJETEvent = async (payload) => {
   }
 };
 
-// ✅ FUNÇÃO AUXILIAR PARA SALVAR MESMO SEM DADOS DA API
 const salvarWebhookJET = async (idInterno, numeroPedido, event, eventOccurredAt, payload) => {
   try {
     const normalizedStatus = STATUS_MAP.JET[event] || event;
@@ -292,7 +294,6 @@ const processOnclickEvent = async (payload) => {
       }, 2 * 60 * 60 * 1000);
     }
 
-    // ✅ VALIDAR PIPELINE
     await anomalyDetector.checkPipelineStatus(pedido_id);
 
   } catch (error) {

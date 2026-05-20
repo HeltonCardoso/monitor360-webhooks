@@ -13,12 +13,9 @@ const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.set('view engine', 'ejs');
-app.set('views', './views');
 app.use(express.static('public'));
-app.use('/', dashboardRoutes);
 
-// Rota raiz
+// Rota raiz (antes das rotas do dashboard para não conflitar)
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Monitor360 Webhooks API',
@@ -26,6 +23,7 @@ app.get('/', (req, res) => {
     status: 'running',
     endpoints: {
       health: '/health',
+      dashboard: '/dashboard',
       webhooks: {
         anymarket: '/webhooks/anymarket',
         jet: '/webhooks/jet',
@@ -34,6 +32,8 @@ app.get('/', (req, res) => {
     }
   });
 });
+
+app.use('/', dashboardRoutes);
 
 // Rotas
 app.use('/webhooks', webhookRoutes);
