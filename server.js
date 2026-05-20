@@ -11,21 +11,29 @@ const dashboardRoutes = require('./routes/dashboard');
 
 const app = express();
 
-// Middleware
-app.use(helmet());
+// ✅ CONFIGURAR HELMET COM CSP RELAXADO
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://cdn.jsdelivr.net"],
+      fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
+    }
+  }
+}));
+
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// View engine ✅ ADICIONE ISTO
+// View engine
 app.set('view engine', 'ejs');
 app.set('views', './views');
-
 app.use(express.static('public'));
 
-// ✅ REMOVA A ROTA '/' DAQUI
-// app.get('/', (req, res) => { ... }) ← DELETE ESTA SEÇÃO
-
-// ✅ DASHBOARD ROUTES PRIMEIRO
+// Dashboard routes
 app.use('/', dashboardRoutes);
 
 // Webhook routes
@@ -34,7 +42,7 @@ app.use('/webhooks', webhookRoutes);
 // Health routes
 app.use('/health', healthRoutes);
 
-// ✅ API INFO em /api (não em /)
+// API info
 app.get('/api', (req, res) => {
   res.json({
     message: 'Monitor360 Webhooks API',
