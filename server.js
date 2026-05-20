@@ -5,7 +5,6 @@ require('dotenv').config();
 
 const webhookRoutes = require('./routes/webhooks');
 const healthRoutes = require('./routes/health');
-const express = require('express');
 const dashboardRoutes = require('./routes/dashboard');
 
 const app = express();
