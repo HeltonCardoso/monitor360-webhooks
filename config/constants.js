@@ -3,18 +3,16 @@
 // Mapeamento de status entre sistemas
 const STATUS_MAP = {
   ANYMARKET: {
-    'PAID_WAITING_SHIP': 'PAGO_AGUARDANDO_ENVIO',
-    'WAITING_PAYMENT': 'AGUARDANDO_PAGAMENTO',
-    'PAYMENT_REPROVED': 'PAGAMENTO_REPROVADO',
-    'SHIPPED': 'ENVIADO',
-    'DELIVERED': 'ENTREGUE',
-    'CANCELLED': 'CANCELADO',
-    'pending': 'PENDENTE',
-    'processing': 'PROCESSANDO',
-    'shipped': 'ENVIADO',
-    'delivered': 'ENTREGUE',
-    'cancelled': 'CANCELADO',
-    'error': 'ERRO'
+    'PENDING':              'PENDENTE',
+    'PAID_WAITING_SHIP':    'PAGO_AGUARDANDO_ENVIO',
+    'INVOICED':             'FATURADO',
+    'PAID_WAITING_DELIVERY':'ENVIADO',
+    'CONCLUDED':            'ENTREGUE',
+    'CANCELED':             'CANCELADO',
+    // legados
+    'WAITING_PAYMENT':      'AGUARDANDO_PAGAMENTO',
+    'PAYMENT_REPROVED':     'PAGAMENTO_REPROVADO',
+    'error':                'ERRO'
   },
   JET: {
     'Pedido.Pago': 'PAGO',

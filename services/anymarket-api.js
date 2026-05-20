@@ -115,6 +115,9 @@ const anymarketApi = {
           marca: item.brand || 'N/A',
           categoria: item.category || 'N/A',
           id_marketplace: item.idInMarketPlace || item.marketPlaceId,
+          // shippingtype identifica ME2 (ex: "me2 - Coleta Normal")
+          // usado para não gerar anomalia quando pedido ML fica em FATURADO aguardando bipagem
+          shippingtype: item.shippings?.[0]?.shippingtype || '',
           estoque: (item.stocks || []).map(s => ({
             local_id: s.stockLocalId,
             quantidade: s.amount,

@@ -8,12 +8,40 @@ const onclickApi = require('./onclick-api');
 const { STATUS_MAP } = require('../config/constants');
 const { v4: uuidv4 } = require('uuid');
 
+// Cache de deduplicação — evita processar o mesmo webhook duas vezes
+// A AnyMarket frequentemente dispara o mesmo evento em duplicidade
+const recentlyProcessed = new Map();
+const isDuplicate = (key) => {
+  const last = recentlyProcessed.get(key);
+  if (last && Date.now() - last < 10000) return true; // 10 segundos
+  recentlyProcessed.set(key, Date.now());
+  return false;
+};
+
+// Verifica se o pedido é do tipo ME2 (Mercado Livre coleta normal)
+// Identificado pelo shippingtype dos itens contendo "me2"
+// Nesses pedidos o status fica FATURADO até a transportadora bipar a etiqueta
+const isMe2 = (infoRelevante) => {
+  const produtos = infoRelevante?.produtos || [];
+  return produtos.some(item =>
+    (item.shippingtype || '').toLowerCase().includes('me2')
+  );
+};
+
 const processAnyMarketEvent = async (payload) => {
   try {
     const { content, event } = payload;
     const idAnyMarket = content?.id;
 
     console.log(`📥 WEBHOOK ANYMARKET RECEBIDO!`);
+
+    // Ignora duplicatas (AnyMarket dispara o mesmo evento duas vezes)
+    const dedupKey = `anymarket-${idAnyMarket}-${event}`;
+    if (isDuplicate(dedupKey)) {
+      console.log(`⏭️  Ignorando duplicata AnyMarket: ${idAnyMarket} - ${event}`);
+      return;
+    }
+
     console.log(`🔄 Processando AnyMarket ID: ${idAnyMarket} - Evento: ${event}`);
 
     if (!idAnyMarket) {
@@ -77,7 +105,29 @@ const processAnyMarketEvent = async (payload) => {
 
     console.log(`✅ AnyMarket ${numeroMarketplace} armazenado com status ${normalizedStatus}`);
 
-    // 6️⃣ VERIFICAR ANOMALIA: pedido não integrou na JET
+    // 6️⃣ PAID_WAITING_DELIVERY = AnyMarket confirmou envio → RETORNO_ANYMARKET
+    if (event === 'PAID_WAITING_DELIVERY') {
+      await pool.query(
+        `INSERT INTO tracking_events 
+         (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (pedido_id, origem, status) DO UPDATE SET
+           timestamp = EXCLUDED.timestamp,
+           payload = EXCLUDED.payload`,
+        [
+          uuidv4(),
+          numeroMarketplace,
+          'RETORNO_ANYMARKET',
+          'ENVIADO',
+          new Date(),
+          JSON.stringify(payload),
+          JSON.stringify(infoRelevante)
+        ]
+      );
+      console.log(`↩️  [RETORNO_ANYMARKET] Pedido ${numeroMarketplace} confirmado como enviado pela AnyMarket`);
+    }
+
+    // 7️⃣ VERIFICAR ANOMALIA: pedido não integrou na JET
     const jetCheck = await pool.query(
       `SELECT id FROM tracking_events 
        WHERE pedido_id = $1 AND origem = $2 LIMIT 1`,
@@ -93,7 +143,33 @@ const processAnyMarketEvent = async (payload) => {
       );
     }
 
-    // 7️⃣ VALIDAR PIPELINE COMPLETO
+    // 8️⃣ ANOMALIA: ficou FATURADO depois que JET enviou (exceto ME2)
+    // Após Pedido.Enviado da JET, AnyMarket deve ir para PAID_WAITING_DELIVERY
+    // Se vier INVOICED e não for ME2, é anomalia
+    if (event === 'INVOICED') {
+      const jetEnviado = await pool.query(
+        `SELECT id FROM tracking_events 
+         WHERE pedido_id = $1 AND origem = 'JET' AND status = 'ENVIADO' LIMIT 1`,
+        [numeroMarketplace]
+      );
+
+      if (jetEnviado.rows.length) {
+        const pedidoIsMe2 = isMe2(infoRelevante);
+        if (!pedidoIsMe2) {
+          console.warn(`⚠️ Pedido ${numeroMarketplace} ficou FATURADO após JET enviar (não é ME2) - possível anomalia`);
+          await anomalyDetector.createAnomaly(
+            numeroMarketplace,
+            'FATURADO_APOS_ENVIO',
+            'ANYMARKET',
+            infoRelevante.marketplace
+          );
+        } else {
+          console.log(`ℹ️  Pedido ${numeroMarketplace} ME2 - aguardando bipagem da etiqueta para ir a ENVIADO`);
+        }
+      }
+    }
+
+    // 9️⃣ VALIDAR PIPELINE COMPLETO
     await anomalyDetector.checkPipelineStatus(numeroMarketplace);
 
   } catch (error) {
@@ -106,6 +182,14 @@ const processJETEvent = async (payload) => {
     const { Id: idInterno, ModifiedId: numeroPedido, Event, EventOccurredAt } = payload;
 
     console.log(`📥 WEBHOOK JET RECEBIDO!`);
+
+    // Ignora duplicatas
+    const dedupKeyJet = `jet-${idInterno}-${Event}`;
+    if (isDuplicate(dedupKeyJet)) {
+      console.log(`⏭️  Ignorando duplicata JET: ${idInterno} - ${Event}`);
+      return;
+    }
+
     console.log(`🔄 Processando JET: ${idInterno} - Pedido: ${numeroPedido} - ${Event}`);
 
     const dadosCompletos = await jetApi.buscarDetalhesPedido(numeroPedido);
