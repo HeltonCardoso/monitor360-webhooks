@@ -34,8 +34,9 @@ function detectarMarketplace(keys) {
     return 'MAGAZINE_LUIZA';
   }
 
-  // MadeiraMadeira: tem coluna "Pedido" isolada
-  if (keys.includes('Pedido') || keys.includes('pedido')) {
+  // MadeiraMadeira: tem "Pedido" E "Pedido Site MM" (específico deles)
+  if (keys.includes('Pedido Site MM') || 
+      (keys.includes('Pedido') && joined.includes('id do seller'))) {
     return 'MADEIRAMADEIRA';
   }
 
@@ -90,112 +91,139 @@ function extractMagalu(row) {
 }
 
 // ── WEBCONTINENTAL ──
+// Colunas: Parceiro Portal, Parceiro, ERP Parceiro, Pedido Parceiro, Pedido Site,
+//          Pedido ERP, Pedido Marketplace, Cliente, CPF, Total do Pedido,
+//          ..., Status Atual, ..., Data Criação, ...
 function extractWebContinental(row) {
-  let pedidoId = null;
-  let cliente  = 'N/A';
-  let valor    = 0;
-  let status   = 'DESCONHECIDO';
+  let pedidoId    = null;
+  let pedidoSite  = null;
+  let cliente     = 'N/A';
+  let valor       = 0;
+  let status      = 'DESCONHECIDO';
+  let data        = null;
 
   for (const [key, value] of Object.entries(row)) {
-    const k = key.toLowerCase();
-    if (k.includes('pedido parceiro') || k === 'pedido_parceiro' || k.includes('parceiro portal')) {
+    const k = key.toString().trim();
+    const kl = k.toLowerCase();
+
+    // ID principal: "Pedido Parceiro" (ID no ERP parceiro)
+    if (k === 'Pedido Parceiro' || kl === 'pedido parceiro') {
       pedidoId = value?.toString().trim();
     }
-    if (k.includes('cliente') && !k.includes('cpf')) {
+    // ID alternativo: "Pedido Site" (ID no site da WebContinental)
+    if (k === 'Pedido Site' || kl === 'pedido site') {
+      pedidoSite = value?.toString().trim();
+    }
+    if (k === 'Cliente' || (kl === 'cliente')) {
       cliente = value?.toString().trim() || 'N/A';
     }
-    if (k.includes('total do pedido') || k === 'valor_total') {
+    if (k === 'Total do Pedido' || kl === 'total do pedido') {
       valor = parseValor(value);
     }
-    if (k.includes('status atual') || k === 'status') {
+    if (k === 'Status Atual' || kl === 'status atual') {
       status = value?.toString().trim() || 'DESCONHECIDO';
+    }
+    if (k === 'Data Criação' || kl === 'data criação' || kl === 'data criacao') {
+      data = value?.toString().trim() || null;
     }
   }
 
-  // Fallback: primeira coluna numérica
-  if (!pedidoId) {
-    const v = Object.values(row)[0];
-    if (v && !isNaN(parseInt(v))) pedidoId = v.toString().trim();
-  }
+  // Usa Pedido Parceiro como ID principal; fallback para Pedido Site
+  const idFinal = pedidoId || pedidoSite;
 
   return {
-    pedido_id_original:   pedidoId,
-    pedido_id_normalizado: pedidoId ? normalizeOrderId(pedidoId) : null,
+    pedido_id_original:    idFinal,
+    pedido_id_normalizado: idFinal ? normalizeOrderId(idFinal) : null,
     marketplace: 'WEBCONTINENTAL',
     status,
     valor_total: valor,
     cliente: (cliente || 'N/A').substring(0, 100),
-    data: null,
+    data,
     raw: row
   };
 }
 
 // ── MADEIRAMADEIRA ──
+// Colunas: ID do Seller, Nome do Seller, Pedido, Pedido Site MM, CPF do Cliente,
+//          Cliente, Telefone, Data Pedido, ..., Valor Pedido, ..., Status, ...
+// Separador: ponto-e-vírgula, encoding: latin1
 function extractMadeiraMadeira(row) {
   let pedidoId = null;
   let cliente  = 'N/A';
   let valor    = 0;
   let status   = 'DESCONHECIDO';
+  let data     = null;
 
   for (const [key, value] of Object.entries(row)) {
-    const k = key.toLowerCase().trim();
-    if (k === 'pedido' || k === 'número do pedido' || k === 'numero do pedido' || k === 'id do pedido') {
+    const k = key.toString().trim();
+    const kl = k.toLowerCase();
+
+    // ID do pedido: coluna "Pedido" (ID interno MM) ou "Pedido Site MM"
+    if (k === 'Pedido' || kl === 'pedido') {
       pedidoId = value?.toString().trim();
     }
-    if (k.includes('cliente') && !k.includes('cpf') && !k.includes('cnpj')) {
+    if (kl.includes('cliente') && !kl.includes('cpf') && !kl.includes('status')) {
       cliente = value?.toString().trim() || 'N/A';
     }
-    if (k.includes('valor pedido') || k === 'valor_pedido' || k === 'valor total') {
+    if (kl === 'valor pedido' || kl === 'valor_pedido') {
       valor = parseValor(value);
     }
-    if (k === 'status' || k === 'situação' || k === 'situacao') {
+    if (k === 'Status' || kl === 'status') {
       status = value?.toString().trim() || 'DESCONHECIDO';
+    }
+    if (kl === 'data pedido' || kl === 'data_pedido') {
+      data = value?.toString().trim() || null;
     }
   }
 
   return {
-    pedido_id_original:   pedidoId,
+    pedido_id_original:    pedidoId,
     pedido_id_normalizado: pedidoId ? normalizeOrderId(pedidoId) : null,
     marketplace: 'MADEIRAMADEIRA',
     status,
     valor_total: valor,
     cliente: (cliente || 'N/A').substring(0, 100),
-    data: null,
+    data,
     raw: row
   };
 }
 
 // ── AMAZON ──
+// Formato: TSV (tab-separado), sem status explícito (todos são pedidos ativos)
+// Colunas: order-id, order-item-id, purchase-date, payments-date,
+//          buyer-email, buyer-name, ..., item-price, shipping-price, ...
+// Um pedido pode ter múltiplas linhas (um item por linha) — agrupa pelo order-id
 function extractAmazon(row) {
   let pedidoId = null;
   let cliente  = 'N/A';
   let valor    = 0;
-  let status   = 'DESCONHECIDO';
+  let data     = null;
 
   for (const [key, value] of Object.entries(row)) {
-    const k = key.toLowerCase().replace(/-/g, ' ').trim();
-    if (k === 'order id' || k === 'order-id' || k.includes('numero do pedido')) {
+    const k = key.toString().trim().toLowerCase();
+
+    if (k === 'order-id') {
       pedidoId = value?.toString().trim();
     }
-    if (k.includes('buyer name') || k.includes('nome')) {
+    if (k === 'buyer-name') {
       cliente = value?.toString().trim() || 'N/A';
     }
-    if (k.includes('item price') || k.includes('order total') || k.includes('valor')) {
-      valor = parseValor(value);
+    if (k === 'item-price') {
+      valor += parseFloat(value?.toString().trim()) || 0;
     }
-    if (k.includes('order status') || k === 'status') {
-      status = value?.toString().trim() || 'DESCONHECIDO';
+    if (k === 'purchase-date') {
+      data = value?.toString().trim() || null;
     }
   }
 
   return {
-    pedido_id_original:   pedidoId,
+    pedido_id_original:    pedidoId,
     pedido_id_normalizado: pedidoId ? normalizeOrderId(pedidoId) : null,
     marketplace: 'AMAZON',
-    status,
+    status: 'ATIVO', // Amazon não exporta status na planilha de pedidos
     valor_total: valor,
     cliente: (cliente || 'N/A').substring(0, 100),
-    data: null,
+    data,
     raw: row
   };
 }
@@ -373,10 +401,43 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
 
-    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const rawData = xlsx.utils.sheet_to_json(worksheet, { defval: '' });
+    // Detecta se é CSV com ponto-e-vírgula (MadeiraMadeira usa latin1 + semicolon)
+    const fileExt = req.file.originalname.toLowerCase().split('.').pop();
+    const bufferStr = req.file.buffer.slice(0, 500).toString('latin1');
+    const isSemicolonCsv = fileExt === 'csv' && bufferStr.includes(';');
+    const isTsvOrTxt = fileExt === 'txt' || fileExt === 'tsv';
+
+    let rawData = [];
+
+    if (isTsvOrTxt) {
+      // Amazon: TSV (tab-separado)
+      const text = req.file.buffer.toString('utf8');
+      const lines = text.split('\n').filter(l => l.trim());
+      const headers = lines[0].split('\t').map(h => h.trim());
+      rawData = lines.slice(1).map(line => {
+        const values = line.split('\t');
+        const obj = {};
+        headers.forEach((h, i) => { obj[h] = values[i]?.trim() || ''; });
+        return obj;
+      }).filter(row => Object.values(row).some(v => v));
+    } else if (isSemicolonCsv) {
+      // MadeiraMadeira: CSV com ; e encoding latin1
+      const text = req.file.buffer.toString('latin1');
+      const lines = text.split('\n').filter(l => l.trim());
+      const headers = lines[0].split(';').map(h => h.replace(/^"|"$/g, '').trim());
+      rawData = lines.slice(1).map(line => {
+        const values = line.split(';').map(v => v.replace(/^"|"$/g, '').trim());
+        const obj = {};
+        headers.forEach((h, i) => { obj[h] = values[i] || ''; });
+        return obj;
+      }).filter(row => Object.values(row).some(v => v));
+    } else {
+      // XLSX / XLS / CSV normal
+      const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      rawData = xlsx.utils.sheet_to_json(worksheet, { defval: '' });
+    }
 
     if (!rawData.length) return res.status(400).json({ error: 'Planilha vazia ou formato inválido' });
 
