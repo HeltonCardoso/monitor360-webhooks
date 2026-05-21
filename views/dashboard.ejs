@@ -73,7 +73,7 @@
     /* ── SIDEBAR ── */
     .sidebar {
       position: fixed; left: 0; top: 52px; bottom: 0;
-      width: 180px;
+      width: 200px;
       background: var(--surface);
       border-right: 1px solid var(--border);
       padding: 20px 0;
@@ -93,12 +93,12 @@
       border-left-color: var(--accent);
       background: rgba(0,212,255,.05);
     }
-    .nav-item-s i { width: 16px; text-align: center; }
+    .nav-item-s i { width: 18px; text-align: center; }
     .nav-divider { border-color: var(--border); margin: 12px 20px; }
 
     /* ── MAIN ── */
     .main {
-      margin-left: 180px;
+      margin-left: 200px;
       margin-top: 52px;
       padding: 24px;
       min-height: calc(100vh - 52px);
@@ -300,6 +300,39 @@
     .toast-item.success { border-color: var(--success); }
     .toast-item.danger { border-color: var(--danger); }
 
+    /* ── TOOLTIPS EXPLICATIVOS ── */
+    .help-tip {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      background: var(--surface2);
+      border-radius: 50%;
+      text-align: center;
+      line-height: 16px;
+      font-size: 10px;
+      font-weight: bold;
+      color: var(--text-muted);
+      cursor: help;
+      margin-left: 6px;
+      position: relative;
+    }
+    .help-tip:hover::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 10px;
+      white-space: nowrap;
+      z-index: 1000;
+      color: var(--accent);
+      font-family: var(--font-mono);
+    }
+
     @media(max-width:768px) {
       .sidebar { display: none; }
       .main { margin-left: 0; padding: 16px; }
@@ -332,6 +365,10 @@
   <a href="/" class="nav-item-s active"><i class="fas fa-th-large"></i> Dashboard</a>
   <a href="/pedidos" class="nav-item-s"><i class="fas fa-boxes"></i> Pedidos</a>
   <a href="/anomalias" class="nav-item-s"><i class="fas fa-exclamation-triangle"></i> Anomalias</a>
+  
+  <!-- NOVO LINK PARA COMPARAÇÃO DE PLANILHA -->
+  <a href="/upload" class="nav-item-s"><i class="fas fa-file-upload"></i> Comparar Planilha</a>
+  
   <hr class="nav-divider">
   <a href="#" class="nav-item-s" onclick="alert('Em desenvolvimento')"><i class="fas fa-cog"></i> Config</a>
 </div>
@@ -348,29 +385,44 @@
   <div class="grid-4">
     <div class="card metric blue">
       <div class="metric-val" id="m-anymarket">—</div>
-      <div class="metric-label">PEDIDOS ANYMARKET</div>
+      <div class="metric-label">
+        PEDIDOS ANYMARKET
+        <span class="help-tip" data-tip="Pedidos que chegaram do marketplace via webhook">?</span>
+      </div>
       <div class="metric-sub" id="m-24h">— nas últimas 24h</div>
     </div>
     <div class="card metric orange">
       <div class="metric-val" id="m-jet">—</div>
-      <div class="metric-label">INTEGRADOS JET</div>
+      <div class="metric-label">
+        INTEGRADOS JET
+        <span class="help-tip" data-tip="Pedidos que chegaram no ERP (seu sistema interno)">?</span>
+      </div>
       <div class="metric-sub" id="m-taxa">taxa de sync: —%</div>
     </div>
     <div class="card metric yellow">
       <div class="metric-val" id="m-travados">—</div>
-      <div class="metric-label">PEDIDOS TRAVADOS</div>
+      <div class="metric-label">
+        PEDIDOS TRAVADOS
+        <span class="help-tip" data-tip="Pedidos sem atualização há mais de 1 hora - precisam de atenção">?</span>
+      </div>
       <div class="metric-sub">sem update há +1h</div>
     </div>
     <div class="card metric red">
       <div class="metric-val" id="m-anomalias">—</div>
-      <div class="metric-label">ANOMALIAS ABERTAS</div>
+      <div class="metric-label">
+        ANOMALIAS ABERTAS
+        <span class="help-tip" data-tip="Problemas não resolvidos no fluxo dos pedidos">?</span>
+      </div>
       <div class="metric-sub">não resolvidas</div>
     </div>
   </div>
 
   <!-- PIPELINE FLOW -->
   <div class="card" style="margin-bottom:16px">
-    <div class="card-header"><i class="fas fa-route"></i> FLUXO DO PIPELINE</div>
+    <div class="card-header">
+      <i class="fas fa-route"></i> FLUXO DO PIPELINE
+      <span class="help-tip" data-tip="Caminho que o pedido percorre: Marketplace → ERP → Produção → Confirmação de Envio">?</span>
+    </div>
     <div class="pipeline-flow" id="pipeline-flow">
       <div class="loading">Carregando pipeline...</div>
     </div>
@@ -379,7 +431,10 @@
   <!-- LINHA 2: SYNC + MARKETPLACE -->
   <div class="grid-2">
     <div class="card">
-      <div class="card-header"><i class="fas fa-sync"></i> SINCRONIZAÇÃO JET</div>
+      <div class="card-header">
+        <i class="fas fa-sync"></i> SINCRONIZAÇÃO JET
+        <span class="help-tip" data-tip="Percentual de pedidos que chegaram no ERP corretamente">?</span>
+      </div>
       <div class="card-body">
         <div style="display:flex;justify-content:space-between;align-items:baseline">
           <span style="font-size:11px;color:var(--text-muted)">Pedidos integrados / Total recebidos</span>
@@ -394,7 +449,10 @@
     </div>
 
     <div class="card">
-      <div class="card-header"><i class="fas fa-store"></i> POR MARKETPLACE</div>
+      <div class="card-header">
+        <i class="fas fa-store"></i> POR MARKETPLACE
+        <span class="help-tip" data-tip="Volume de pedidos por marketplace (apenas ativos, não finalizados)">?</span>
+      </div>
       <div class="card-body" id="marketplace-list">
         <div class="loading">Carregando...</div>
       </div>
@@ -404,13 +462,19 @@
   <!-- LINHA 3: GRÁFICOS -->
   <div class="grid-2">
     <div class="card">
-      <div class="card-header"><i class="fas fa-chart-bar"></i> STATUS POR PLATAFORMA</div>
+      <div class="card-header">
+        <i class="fas fa-chart-bar"></i> STATUS POR PLATAFORMA
+        <span class="help-tip" data-tip="Distribuição dos status dos pedidos em cada sistema">?</span>
+      </div>
       <div class="card-body">
         <div class="chart-wrap"><canvas id="chartStatus"></canvas></div>
       </div>
     </div>
     <div class="card">
-      <div class="card-header"><i class="fas fa-chart-line"></i> VOLUME ÚLTIMAS 24H</div>
+      <div class="card-header">
+        <i class="fas fa-chart-line"></i> VOLUME ÚLTIMAS 24H
+        <span class="help-tip" data-tip="Quantidade de pedidos recebidos por hora nas últimas 24h">?</span>
+      </div>
       <div class="card-body">
         <div class="chart-wrap"><canvas id="chartVolume"></canvas></div>
       </div>
@@ -420,7 +484,10 @@
   <!-- ANOMALIAS -->
   <div class="card">
     <div class="card-header" style="justify-content:space-between">
-      <span><i class="fas fa-exclamation-triangle"></i> ANOMALIAS RECENTES</span>
+      <span>
+        <i class="fas fa-exclamation-triangle"></i> ANOMALIAS RECENTES
+        <span class="help-tip" data-tip="Problemas detectados no fluxo que precisam ser resolvidos">?</span>
+      </span>
       <a href="/anomalias" style="color:var(--accent);font-size:11px;text-decoration:none">ver todas →</a>
     </div>
     <div class="card-body" style="padding:0">
@@ -435,8 +502,54 @@
             <th>Ação</th>
           </tr>
         </thead>
-        <tbody><tr><td colspan="6" class="loading">Carregando...</td></tr></tbody>
+        <tbody><tr><td colspan="6" class="loading">Carregando...</td></tr>
+        </tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- LEGENDA EXPLICATIVA - O QUE CADA MÉTRICA SIGNIFICA -->
+  <div class="card mt-4" style="margin-top: 20px;">
+    <div class="card-header">
+      <i class="fas fa-info-circle"></i> ENTENDENDO O DASHBOARD
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-3">
+          <strong style="color: var(--accent)">📦 Pedidos AnyMarket</strong>
+          <p style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Total de pedidos recebidos dos marketplaces via webhook</p>
+        </div>
+        <div class="col-md-3">
+          <strong style="color: var(--accent2)">🔄 Integrados JET</strong>
+          <p style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Pedidos que chegaram no ERP (sistema interno)</p>
+        </div>
+        <div class="col-md-3">
+          <strong style="color: var(--warning)">⚠️ Pedidos Travados</strong>
+          <p style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Sem atualização há +1 hora - precisam de atenção</p>
+        </div>
+        <div class="col-md-3">
+          <strong style="color: var(--danger)">🚨 Anomalias Abertas</strong>
+          <p style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Problemas não resolvidos no fluxo dos pedidos</p>
+        </div>
+      </div>
+      <hr style="border-color: var(--border); margin: 12px 0;">
+      <div class="row">
+        <div class="col-md-4">
+          <strong>📊 Pipeline (Fluxo do Pedido)</strong>
+          <p style="font-size: 11px; color: var(--text-muted);">ANYMARKET → JET → ONCLICK → RETORNO_JET → RETORNO_ANYMARKET</p>
+          <p style="font-size: 10px; color: var(--text-muted);">1. Pedido chega | 2. Integra no ERP | 3. Entra em produção | 4. Confirma envio | 5. Atualiza marketplace</p>
+        </div>
+        <div class="col-md-4">
+          <strong>✅ Taxa de Sincronização</strong>
+          <p style="font-size: 11px; color: var(--text-muted);">Percentual de pedidos que chegaram no ERP corretamente</p>
+          <p style="font-size: 10px; color: var(--text-muted);">Quanto maior, melhor a integração entre os sistemas</p>
+        </div>
+        <div class="col-md-4">
+          <strong>🎯 Comparar Planilha</strong>
+          <p style="font-size: 11px; color: var(--text-muted);">Envie planilhas dos marketplaces para ver o que não integrou</p>
+          <p style="font-size: 10px; color: var(--text-muted);">Use no menu lateral "Comparar Planilha"</p>
+        </div>
+      </div>
     </div>
   </div>
 
