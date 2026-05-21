@@ -15,38 +15,76 @@ const upload = multer({
 function normalizeOrderId(id) {
   if (!id) return id;
   const idStr = id.toString().trim();
-  // Remove sufixos como -1, -2, -3 no final
   return idStr.replace(/-\d+$/, '');
 }
 
 // Função para identificar qual tipo de planilha é
-function detectSheetType(headers) {
+function detectSheetType(headers, firstRow) {
   const headerStr = headers.join(',').toLowerCase();
+  const firstRowStr = firstRow ? JSON.stringify(firstRow).toLowerCase() : '';
   
-  // Planilha da Magazine Luiza
+  // 1. AMAZON - Tem colunas específicas como 'order-id', 'purchase-date'
+  if (headerStr.includes('order-id') && headerStr.includes('purchase-date')) {
+    return 'AMAZON';
+  }
+  
+  // 2. MAGAZINE LUIZA - Tem 'Número do pedido' ou 'numero do pedido' ou 'LU-' no ID
   if (headerStr.includes('número do pedido') || headerStr.includes('numero do pedido')) {
     return 'MAGAZINE_LUIZA';
   }
   
-  // Planilha da WebContinental
+  // 3. WEBCONTINENTAL - Tem 'Pedido Parceiro' ou 'Pedido Marketplace'
   if (headerStr.includes('pedido parceiro') || headerStr.includes('pedido marketplace')) {
     return 'WEBCONTINENTAL';
   }
   
-  // Planilha da MadeiraMadeira
-  if (headerStr.includes('pedido') && headerStr.includes('cliente') && headerStr.includes('status')) {
-    // Verifica se tem coluna "Pedido" (sem acento) - formato MadeiraMadeira
-    const exactHeaders = headers.map(h => h.toLowerCase());
-    if (exactHeaders.includes('pedido') && exactHeaders.includes('cliente') && exactHeaders.includes('status')) {
-      return 'MADEIRAMADEIRA';
-    }
+  // 4. MADEIRAMADEIRA - Tem coluna 'Pedido' (exata) e 'Cliente'
+  if (headers.includes('Pedido') && headers.includes('Cliente')) {
+    return 'MADEIRAMADEIRA';
   }
   
-  // Tenta detectar pelo conteúdo da primeira linha
+  // 5. Tenta detectar pela primeira linha (para Magalu com cabeçalho em português)
+  if (firstRowStr.includes('magazine luiza') || firstRowStr.includes('lu-')) {
+    return 'MAGAZINE_LUIZA';
+  }
+  
   return 'DESCONHECIDO';
 }
 
-// Extrair dados da planilha Magazine Luiza
+// Extrair dados da planilha AMAZON
+function extractAmazonOrder(row) {
+  let pedidoId = row['order-id'] || row['order_id'] || null;
+  let cliente = row['buyer-name'] || row['buyer_name'] || 'N/A';
+  let valor = 0;
+  let status = 'APROVADO'; // Amazon não tem status na planilha
+  let data = row['purchase-date'] || row['purchase_date'] || null;
+  
+  // Calcula valor total (item-price + shipping-price)
+  const itemPrice = parseFloat(row['item-price'] || row['item_price'] || 0);
+  const shippingPrice = parseFloat(row['shipping-price'] || row['shipping_price'] || 0);
+  valor = itemPrice + shippingPrice;
+  
+  // Se não achou o pedido, tenta pela primeira coluna
+  if (!pedidoId) {
+    const values = Object.values(row);
+    if (values.length > 0 && values[0] && values[0].toString().includes('-')) {
+      pedidoId = values[0]?.toString();
+    }
+  }
+  
+  return {
+    pedido_id_original: pedidoId,
+    pedido_id_normalizado: pedidoId ? normalizeOrderId(pedidoId) : null,
+    marketplace: 'AMAZON',
+    status: status,
+    valor_total: valor,
+    cliente: cliente?.substring(0, 100) || 'N/A',
+    data: data,
+    raw: row
+  };
+}
+
+// Extrair dados da planilha MAGAZINE LUIZA (corrigido)
 function extractMagazineLuizaOrder(row) {
   let pedidoId = null;
   let cliente = 'N/A';
@@ -54,23 +92,47 @@ function extractMagazineLuizaOrder(row) {
   let status = 'DESCONHECIDO';
   let data = null;
   
+  // Mapeia todas as chaves possíveis para cada campo
   for (const [key, value] of Object.entries(row)) {
-    const lowerKey = key.toLowerCase();
+    const lowerKey = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const keyClean = lowerKey.replace(/[^a-z0-9]/g, '');
     
-    if (lowerKey.includes('número do pedido') || lowerKey.includes('numero do pedido')) {
+    // PEDIDO ID - várias possibilidades
+    if (keyClean.includes('numerodopedido') || 
+        keyClean.includes('numeropedido') ||
+        keyClean.includes('pedido') && !keyClean.includes('pacote') ||
+        key === 'Número do pedido' ||
+        key === 'Numero do pedido' ||
+        key === 'Pedido') {
       pedidoId = value?.toString();
     }
-    if (lowerKey.includes('nome do cliente')) {
+    
+    // CLIENTE
+    if (keyClean.includes('nomedocliente') || 
+        keyClean.includes('cliente') ||
+        key === 'Nome do cliente') {
       cliente = value?.toString() || 'N/A';
     }
-    if (lowerKey.includes('valor total do pacote') || lowerKey.includes('valor total')) {
+    
+    // VALOR TOTAL
+    if (keyClean.includes('valortotaldopacote') || 
+        keyClean.includes('valortotal') ||
+        key === 'Valor total do Pacote') {
       const valStr = value?.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
       valor = parseFloat(valStr) || 0;
     }
-    if (lowerKey.includes('status pacote') || lowerKey.includes('status')) {
+    
+    // STATUS
+    if (keyClean.includes('statuspacote') || 
+        keyClean.includes('status') ||
+        key === 'Status pacote no momento que o relatório foi solicitado') {
       status = value?.toString() || 'DESCONHECIDO';
     }
-    if (lowerKey.includes('data do pacote') || lowerKey.includes('data')) {
+    
+    // DATA
+    if (keyClean.includes('datadopacote') || 
+        keyClean.includes('data') ||
+        key === 'Data do Pacote') {
       data = value;
     }
   }
@@ -78,7 +140,16 @@ function extractMagazineLuizaOrder(row) {
   // Se não achou o pedido, tenta a segunda coluna (padrão Magalu)
   if (!pedidoId) {
     const values = Object.values(row);
-    if (values.length > 1) {
+    // Procura um valor que parece ID da Magalu (começa com LU-)
+    for (const val of values) {
+      const valStr = val?.toString() || '';
+      if (valStr.startsWith('LU-') && valStr.length > 10) {
+        pedidoId = valStr;
+        break;
+      }
+    }
+    // Se ainda não achou, pega o segundo valor
+    if (!pedidoId && values.length > 1) {
       pedidoId = values[1]?.toString();
     }
   }
@@ -89,13 +160,13 @@ function extractMagazineLuizaOrder(row) {
     marketplace: 'MAGAZINE_LUIZA',
     status: status,
     valor_total: valor,
-    cliente: cliente,
+    cliente: cliente?.substring(0, 100) || 'N/A',
     data: data,
     raw: row
   };
 }
 
-// Extrair dados da planilha WebContinental
+// Extrair dados da planilha WEBCONTINENTAL
 function extractWebContinentalOrder(row) {
   let pedidoId = null;
   let cliente = 'N/A';
@@ -124,7 +195,6 @@ function extractWebContinentalOrder(row) {
     }
   }
   
-  // Se não achou o pedido, tenta a primeira coluna
   if (!pedidoId) {
     const values = Object.values(row);
     if (values.length > 0) {
@@ -138,13 +208,13 @@ function extractWebContinentalOrder(row) {
     marketplace: 'WEBCONTINENTAL',
     status: status,
     valor_total: valor,
-    cliente: cliente,
+    cliente: cliente?.substring(0, 100) || 'N/A',
     data: data,
     raw: row
   };
 }
 
-// Extrair dados da planilha MadeiraMadeira
+// Extrair dados da planilha MADEIRAMADEIRA
 function extractMadeiraMadeiraOrder(row) {
   let pedidoId = null;
   let cliente = 'N/A';
@@ -154,36 +224,29 @@ function extractMadeiraMadeiraOrder(row) {
   
   for (const [key, value] of Object.entries(row)) {
     const lowerKey = key.toLowerCase();
-    const keyClean = lowerKey.replace(/[^a-z]/g, '');
     
-    // Coluna "Pedido" (exata) - MadeiraMadeira
     if (key === 'Pedido' || lowerKey === 'pedido') {
       pedidoId = value?.toString();
     }
-    // Cliente
     if (lowerKey.includes('cliente')) {
       cliente = value?.toString() || 'N/A';
     }
-    // Valor Pedido
     if (lowerKey.includes('valor pedido') || lowerKey === 'valor_pedido') {
       const valStr = value?.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
       valor = parseFloat(valStr) || 0;
     }
-    // Status
     if (lowerKey === 'status') {
       status = value?.toString() || 'DESCONHECIDO';
     }
-    // Data Pedido
     if (lowerKey.includes('data pedido')) {
       data = value;
     }
   }
   
-  // Se não achou o pedido, tenta a terceira coluna (padrão do CSV)
   if (!pedidoId) {
     const values = Object.values(row);
     if (values.length > 2) {
-      pedidoId = values[2]?.toString(); // Coluna "Pedido" é a terceira no CSV
+      pedidoId = values[2]?.toString();
     }
   }
   
@@ -193,7 +256,7 @@ function extractMadeiraMadeiraOrder(row) {
     marketplace: 'MADEIRAMADEIRA',
     status: status,
     valor_total: valor,
-    cliente: cliente,
+    cliente: cliente?.substring(0, 100) || 'N/A',
     data: data,
     raw: row
   };
@@ -241,10 +304,10 @@ router.get('/', (req, res) => {
         .badge-success { background: #00e676; color: #000; }
         .badge-danger { background: #ff1744; color: #fff; }
         .badge-warning { background: #ffab00; color: #000; }
-        .badge-info { background: #00d4ff; color: #000; }
         .badge-magalu { background: #ff0066; color: #fff; }
         .badge-webcontinental { background: #00b4d8; color: #fff; }
         .badge-madeira { background: #2d6a4f; color: #fff; }
+        .badge-amazon { background: #ff9900; color: #000; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
         th, td { padding: 8px; text-align: left; border-bottom: 1px solid #1e2d40; }
         th { color: #64748b; font-size: 10px; text-transform: uppercase; }
@@ -268,6 +331,7 @@ router.get('/', (req, res) => {
         
         <div class="supported-formats">
           <div class="format-badge">📱 Magazine Luiza</div>
+          <div class="format-badge">🛒 Amazon</div>
           <div class="format-badge">💻 WebContinental</div>
           <div class="format-badge">🪵 MadeiraMadeira</div>
         </div>
@@ -275,8 +339,8 @@ router.get('/', (req, res) => {
         <div class="upload-area" id="uploadArea">
           <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
           <h3>Clique ou arraste sua planilha aqui</h3>
-          <p style="color: #64748b; margin-top: 8px;">Suporta .xlsx, .xls, .csv</p>
-          <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display: none;">
+          <p style="color: #64748b; margin-top: 8px;">Suporta .xlsx, .xls, .csv, .txt</p>
+          <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" style="display: none;">
         </div>
         
         <div id="loading" style="display: none;" class="loading">
@@ -327,7 +391,8 @@ router.get('/', (req, res) => {
           const badges = {
             'MAGAZINE_LUIZA': '<span class="badge badge-magalu">📱 Magazine Luiza</span>',
             'WEBCONTINENTAL': '<span class="badge badge-webcontinental">💻 WebContinental</span>',
-            'MADEIRAMADEIRA': '<span class="badge badge-madeira">🪵 MadeiraMadeira</span>'
+            'MADEIRAMADEIRA': '<span class="badge badge-madeira">🪵 MadeiraMadeira</span>',
+            'AMAZON': '<span class="badge badge-amazon">🛒 Amazon</span>'
           };
           return badges[marketplace] || '<span class="badge badge-warning">❓ ' + marketplace + '</span>';
         }
@@ -354,12 +419,15 @@ router.get('/', (req, res) => {
           
           html += '<div class="debug-box">';
           html += '🔍 Tipo de planilha detectada: ' + getMarketplaceBadge(data.tipo_planilha) + '<br>';
-          html += '🔍 Normalização de IDs: IDs da planilha são comparados com e sem sufixo (-1, -2)';
+          html += '🔍 Normalização de IDs: IDs da planilha são comparados com e sem sufixo (-1, -2)<br>';
+          if (data.debug_info) {
+            html += '🔍 Debug: ' + data.debug_info;
+          }
           html += '</div>';
           
           if (naoIntegrados > 0) {
             html += '<h3 style="color: #ffab00; margin: 20px 0 10px;">⚠️ Pedidos NÃO Integrados (' + naoIntegrados + ')</h3>';
-            html += '<div style="overflow-x: auto;"><table><thead></tr>';
+            html += '<div style="overflow-x: auto;"><table><thead>49ight';
             html += '<th>ID na Planilha</th><th>ID Normalizado</th><th>Marketplace</th><th>Status</th><th>Valor</th><th>Cliente</th><th>Data</th>';
             html += '</thead><tbody>';
             
@@ -397,27 +465,52 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
       return res.status(400).json({ error: 'Nenhum arquivo enviado' });
     }
 
-    // Ler a planilha
-    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const rawData = xlsx.utils.sheet_to_json(worksheet);
-
-    if (rawData.length === 0) {
-      return res.status(400).json({ error: 'Planilha vazia ou formato inválido' });
+    let rawData = [];
+    let tipoPlanilha = 'DESCONHECIDO';
+    
+    // Verifica se é arquivo TXT (formato Amazon TAB separado)
+    if (req.file.originalname.endsWith('.txt')) {
+      const content = req.file.buffer.toString('utf8');
+      const lines = content.split('\n');
+      const headers = lines[0].split('\t');
+      
+      rawData = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim()) {
+          const values = lines[i].split('\t');
+          const row = {};
+          headers.forEach((header, idx) => {
+            row[header] = values[idx] || '';
+          });
+          rawData.push(row);
+        }
+      }
+      tipoPlanilha = 'AMAZON';
+    } else {
+      // Arquivo Excel/CSV normal
+      const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      rawData = xlsx.utils.sheet_to_json(worksheet);
+      
+      if (rawData.length === 0) {
+        return res.status(400).json({ error: 'Planilha vazia ou formato inválido' });
+      }
+      
+      // Detectar tipo de planilha
+      const headers = Object.keys(rawData[0]);
+      tipoPlanilha = detectSheetType(headers, rawData[0]);
     }
-
-    // Detectar tipo de planilha
-    const headers = Object.keys(rawData[0]);
-    const tipoPlanilha = detectSheetType(headers);
     
     console.log('📋 Tipo de planilha detectado:', tipoPlanilha);
-    console.log('📋 Headers:', headers.slice(0, 10));
+    console.log('📋 Total de linhas:', rawData.length);
 
     // Extrair pedidos conforme o tipo
     let pedidosPlanilha = [];
     
-    if (tipoPlanilha === 'MAGAZINE_LUIZA') {
+    if (tipoPlanilha === 'AMAZON') {
+      pedidosPlanilha = rawData.map(row => extractAmazonOrder(row));
+    } else if (tipoPlanilha === 'MAGAZINE_LUIZA') {
       pedidosPlanilha = rawData.map(row => extractMagazineLuizaOrder(row));
     } else if (tipoPlanilha === 'WEBCONTINENTAL') {
       pedidosPlanilha = rawData.map(row => extractWebContinentalOrder(row));
@@ -428,36 +521,42 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
       for (const row of rawData) {
         let extracted = null;
         
-        // Tenta MadeiraMadeira primeiro (mais específico)
-        const mmTry = extractMadeiraMadeiraOrder(row);
-        if (mmTry.pedido_id_original && mmTry.pedido_id_original !== 'N/A' && mmTry.pedido_id_original.length > 5) {
-          extracted = mmTry;
+        // Tenta Amazon
+        const amazonTry = extractAmazonOrder(row);
+        if (amazonTry.pedido_id_original && amazonTry.pedido_id_original.includes('-')) {
+          extracted = amazonTry;
         } else {
           // Tenta Magalu
           const magaluTry = extractMagazineLuizaOrder(row);
-          if (magaluTry.pedido_id_original && magaluTry.pedido_id_original !== 'N/A' && magaluTry.pedido_id_original.includes('LU-')) {
+          if (magaluTry.pedido_id_original && magaluTry.pedido_id_original.startsWith('LU-')) {
+            extracted = magaluTry;
+          } else if (magaluTry.pedido_id_original && magaluTry.pedido_id_original.length > 5) {
             extracted = magaluTry;
           } else {
-            // Tenta WebContinental
-            const webTry = extractWebContinentalOrder(row);
-            if (webTry.pedido_id_original && webTry.pedido_id_original !== 'N/A' && webTry.pedido_id_original.length > 5) {
-              extracted = webTry;
-            } else {
-              extracted = magaluTry;
-            }
+            extracted = magaluTry;
           }
         }
         
         pedidosPlanilha.push(extracted);
       }
+      tipoPlanilha = 'MULTIPLO';
     }
 
     // Filtrar pedidos válidos
-    const pedidosValidos = pedidosPlanilha.filter(p => p.pedido_id_original && p.pedido_id_original !== 'N/A' && p.pedido_id_original !== 'undefined');
+    const pedidosValidos = pedidosPlanilha.filter(p => 
+      p.pedido_id_original && 
+      p.pedido_id_original !== 'N/A' && 
+      p.pedido_id_original !== 'undefined' &&
+      p.pedido_id_original.length > 3
+    );
     
     if (pedidosValidos.length === 0) {
-      return res.status(400).json({ error: 'Não foi possível identificar os IDs dos pedidos na planilha. Verifique se há uma coluna com "Pedido", "Número do pedido" ou similar.' });
+      return res.status(400).json({ 
+        error: 'Não foi possível identificar os IDs dos pedidos na planilha. Verifique se há uma coluna com "Pedido", "Número do pedido", "order-id" ou similar.' 
+      });
     }
+
+    console.log(`📋 Pedidos válidos extraídos: ${pedidosValidos.length}`);
 
     // Lista de possíveis IDs para buscar
     const possiveisIds = [];
@@ -466,7 +565,6 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
       if (pedido.pedido_id_normalizado && pedido.pedido_id_normalizado !== pedido.pedido_id_original) {
         possiveisIds.push(pedido.pedido_id_normalizado);
       }
-      // Também busca com sufixo -1 (caso o banco tenha e a planilha não)
       if (!pedido.pedido_id_original.endsWith('-1')) {
         possiveisIds.push(pedido.pedido_id_original + '-1');
       }
