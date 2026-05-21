@@ -8,6 +8,7 @@ require('dotenv').config();
 const webhookRoutes = require('./routes/webhooks');
 const healthRoutes = require('./routes/health');
 const dashboardRoutes = require('./routes/dashboard');
+const uploadRoutes = require('./routes/upload');
 
 const app = express();
 
@@ -41,6 +42,8 @@ app.use('/webhooks', webhookRoutes);
 
 // Health routes
 app.use('/health', healthRoutes);
+
+app.use('/upload', uploadRoutes);
 
 // API info
 app.get('/api', (req, res) => {
