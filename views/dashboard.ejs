@@ -1,505 +1,664 @@
-<!-- views/dashboard.ejs -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MONITOR360 - Dashboard</title>
-  
-  <!-- Bootstrap 5 -->
+  <title>MONITOR360</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  
-  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
-  <!-- Chart.js -->
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
-  
   <style>
     :root {
-      --primary: #2c3e50;
-      --success: #27ae60;
-      --danger: #e74c3c;
-      --warning: #f39c12;
-      --info: #3498db;
+      --bg: #0a0e17;
+      --surface: #111827;
+      --surface2: #1a2332;
+      --border: #1e2d40;
+      --accent: #00d4ff;
+      --accent2: #ff6b35;
+      --success: #00e676;
+      --warning: #ffab00;
+      --danger: #ff1744;
+      --text: #e2e8f0;
+      --text-muted: #64748b;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-display: 'Syne', sans-serif;
     }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background-color: #ecf0f1;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    .navbar {
-      background: linear-gradient(135deg, var(--primary) 0%, #34495e 100%);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-    .navbar-brand {
-      font-weight: bold;
-      font-size: 1.5rem;
-      color: white !important;
-    }
-
-    .sidebar {
-      background: white;
-      border-right: 1px solid #ddd;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
       min-height: 100vh;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: 52px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px;
+    }
+    .topbar-brand {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 18px;
+      color: var(--accent);
+      letter-spacing: 2px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .topbar-brand .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    .topbar-right { display: flex; align-items: center; gap: 16px; }
+    .topbar-time { color: var(--text-muted); font-size: 12px; }
+    .btn-refresh {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--accent); padding: 6px 14px; border-radius: 4px;
+      cursor: pointer; font-family: var(--font-mono); font-size: 12px;
+      transition: all .2s;
+    }
+    .btn-refresh:hover { background: var(--accent); color: var(--bg); }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      position: fixed; left: 0; top: 52px; bottom: 0;
+      width: 180px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
       padding: 20px 0;
-      position: fixed;
-      width: 200px;
-      left: 0;
-      top: 56px;
+      display: flex; flex-direction: column;
     }
-
-    .sidebar a {
-      color: #2c3e50;
+    .nav-item-s {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 20px;
+      color: var(--text-muted);
       text-decoration: none;
-      padding: 12px 20px;
-      display: block;
-      border-left: 3px solid transparent;
-      transition: all 0.3s;
+      border-left: 2px solid transparent;
+      transition: all .2s;
+      font-size: 12px;
+    }
+    .nav-item-s:hover, .nav-item-s.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+      background: rgba(0,212,255,.05);
+    }
+    .nav-item-s i { width: 16px; text-align: center; }
+    .nav-divider { border-color: var(--border); margin: 12px 20px; }
+
+    /* ── MAIN ── */
+    .main {
+      margin-left: 180px;
+      margin-top: 52px;
+      padding: 24px;
+      min-height: calc(100vh - 52px);
     }
 
-    .sidebar a:hover,
-    .sidebar a.active {
-      background-color: #ecf0f1;
-      border-left-color: var(--primary);
-      color: var(--primary);
-      font-weight: 600;
-    }
-
-    .main-content {
-      margin-left: 200px;
-      padding: 30px;
-      margin-top: 56px;
-    }
-
-    .card {
-      border: none;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      border-radius: 8px;
+    .page-title {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 22px;
+      color: var(--text);
       margin-bottom: 20px;
+      display: flex; align-items: center; gap: 12px;
     }
+    .page-title span { color: var(--accent); }
 
+    /* ── GRID ── */
+    .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 16px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; margin-bottom: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 16px; }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
     .card-header {
-      background: linear-gradient(135deg, var(--primary) 0%, #34495e 100%);
-      color: white;
-      border: none;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
       font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      display: flex; align-items: center; gap: 8px;
     }
+    .card-header i { color: var(--accent); }
+    .card-body { padding: 16px; }
 
-    .metric-card {
+    /* ── METRIC CARDS ── */
+    .metric {
+      padding: 18px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .metric::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    }
+    .metric.blue::before { background: var(--accent); }
+    .metric.orange::before { background: var(--accent2); }
+    .metric.green::before { background: var(--success); }
+    .metric.red::before { background: var(--danger); }
+    .metric.yellow::before { background: var(--warning); }
+
+    .metric-val {
+      font-family: var(--font-display);
+      font-size: 36px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .metric.blue .metric-val { color: var(--accent); }
+    .metric.orange .metric-val { color: var(--accent2); }
+    .metric.green .metric-val { color: var(--success); }
+    .metric.red .metric-val { color: var(--danger); }
+    .metric.yellow .metric-val { color: var(--warning); }
+
+    .metric-label { color: var(--text-muted); font-size: 11px; letter-spacing: .5px; }
+    .metric-sub { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+
+    /* ── PIPELINE ── */
+    .pipeline-flow {
+      display: flex; align-items: center; gap: 0;
+      padding: 20px 16px;
+    }
+    .pipeline-stage {
+      flex: 1;
       text-align: center;
-      padding: 20px;
+      position: relative;
     }
-
-    .metric-value {
-      font-size: 2.5rem;
-      font-weight: bold;
-      color: var(--primary);
+    .pipeline-stage::after {
+      content: '→';
+      position: absolute; right: -8px; top: 50%; transform: translateY(-50%);
+      color: var(--border); font-size: 16px;
     }
+    .pipeline-stage:last-child::after { display: none; }
 
-    .metric-label {
-      color: #7f8c8d;
-      font-size: 0.9rem;
-      margin-top: 10px;
+    .stage-bubble {
+      width: 52px; height: 52px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 8px;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 16px;
+      border: 2px solid var(--border);
+      transition: all .3s;
     }
+    .stage-bubble.active {
+      border-color: var(--accent);
+      background: rgba(0,212,255,.1);
+      color: var(--accent);
+      box-shadow: 0 0 16px rgba(0,212,255,.2);
+    }
+    .stage-bubble.warning {
+      border-color: var(--warning);
+      background: rgba(255,171,0,.1);
+      color: var(--warning);
+    }
+    .stage-name { font-size: 10px; color: var(--text-muted); letter-spacing: .5px; }
+    .stage-count { font-size: 18px; font-weight: 700; color: var(--text); }
 
-    .status-badge {
+    /* ── TAXA SYNC ── */
+    .sync-bar-wrap { background: var(--surface2); border-radius: 3px; height: 8px; overflow: hidden; margin: 10px 0 6px; }
+    .sync-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--success)); border-radius: 3px; transition: width 1s; }
+
+    /* ── TABLE ── */
+    .tbl { width: 100%; border-collapse: collapse; }
+    .tbl th {
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .tbl td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(30,45,64,.5);
+      vertical-align: middle;
+    }
+    .tbl tr:hover td { background: rgba(0,212,255,.03); }
+    .tbl tr:last-child td { border-bottom: none; }
+
+    /* ── BADGES ── */
+    .badge-tipo {
       display: inline-block;
-      padding: 5px 10px;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: 600;
+      padding: 3px 8px; border-radius: 3px;
+      font-size: 10px; font-weight: 600; letter-spacing: .5px;
+      font-family: var(--font-mono);
     }
+    .badge-NAO_INTEGROU_JET { background: rgba(255,23,68,.15); color: #ff6b8a; border: 1px solid rgba(255,23,68,.3); }
+    .badge-FATURADO_APOS_ENVIO { background: rgba(255,171,0,.15); color: var(--warning); border: 1px solid rgba(255,171,0,.3); }
+    .badge-TRAVADO { background: rgba(255,107,53,.15); color: var(--accent2); border: 1px solid rgba(255,107,53,.3); }
+    .badge-default { background: rgba(100,116,139,.15); color: var(--text-muted); border: 1px solid rgba(100,116,139,.3); }
 
-    .status-pago { background-color: #d4edda; color: #155724; }
-    .status-enviado { background-color: #cce5ff; color: #004085; }
-    .status-faturado { background-color: #d1ecf1; color: #0c5460; }
-    .status-desconhecido { background-color: #e2e3e5; color: #383d41; }
-
-    .anomalia-badge {
-      background-color: #f8d7da;
-      color: #721c24;
-      padding: 5px 10px;
-      border-radius: 4px;
-      font-size: 0.85rem;
+    .badge-mkt {
+      display: inline-block; padding: 2px 8px; border-radius: 3px;
+      font-size: 10px; font-weight: 600;
     }
+    .badge-SHOPEE { background: rgba(238,77,45,.15); color: #ff7043; }
+    .badge-MERCADO_LIVRE { background: rgba(255,214,0,.15); color: #ffd600; }
+    .badge-MAGAZINE_LUIZA { background: rgba(0,123,255,.15); color: #64b5f6; }
+    .badge-default-mkt { background: rgba(100,116,139,.15); color: var(--text-muted); }
 
-    .footer {
-      background: white;
-      padding: 20px;
-      text-align: center;
-      color: #7f8c8d;
-      border-top: 1px solid #ddd;
-      margin-top: 40px;
-      margin-left: 200px;
+    .btn-resolver {
+      background: none; border: 1px solid var(--success);
+      color: var(--success); padding: 3px 10px; border-radius: 3px;
+      cursor: pointer; font-size: 11px; font-family: var(--font-mono);
+      transition: all .2s;
     }
+    .btn-resolver:hover { background: var(--success); color: var(--bg); }
 
-    .alert-container {
-      position: fixed;
-      top: 80px;
-      right: 20px;
-      z-index: 1000;
-      max-width: 400px;
+    /* ── CHARTS ── */
+    .chart-wrap { position: relative; height: 200px; }
+
+    /* ── MARKETPLACE LIST ── */
+    .mkt-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(30,45,64,.5);
     }
+    .mkt-item:last-child { border-bottom: none; }
+    .mkt-bar-bg { flex: 1; margin: 0 12px; background: var(--surface2); border-radius: 2px; height: 4px; }
+    .mkt-bar { height: 100%; border-radius: 2px; background: var(--accent); }
 
-    @media (max-width: 768px) {
-      .sidebar {
-        width: 100%;
-        position: relative;
-        top: 0;
-        border-right: none;
-        border-bottom: 1px solid #ddd;
-      }
+    /* ── EMPTY ── */
+    .empty-state { text-align: center; padding: 30px; color: var(--text-muted); }
+    .empty-state i { font-size: 28px; margin-bottom: 8px; display: block; opacity: .3; }
 
-      .main-content {
-        margin-left: 0;
-        margin-top: 0;
-      }
+    /* ── LOADING ── */
+    .loading { color: var(--text-muted); font-size: 12px; padding: 20px; text-align: center; }
 
-      .footer {
-        margin-left: 0;
-      }
+    /* ── ALERT TOAST ── */
+    .toast-container {
+      position: fixed; top: 64px; right: 16px; z-index: 200;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .toast-item {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 4px; padding: 10px 16px;
+      font-size: 12px; min-width: 280px;
+      display: flex; align-items: center; gap: 10px;
+      animation: slideIn .3s ease;
+    }
+    @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+    .toast-item.success { border-color: var(--success); }
+    .toast-item.danger { border-color: var(--danger); }
+
+    @media(max-width:768px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 16px; }
+      .grid-4 { grid-template-columns: repeat(2,1fr); }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-  <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
-    <div class="container-fluid">
-      <a class="navbar-brand" href="/">
-        <i class="fas fa-chart-line"></i> MONITOR360
-      </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item">
-            <span class="nav-link" id="status-online">
-              <i class="fas fa-circle text-success"></i> Online
-            </span>
-          </li>
-          <li class="nav-item">
-            <button class="btn btn-sm btn-light" onclick="location.reload()">
-              <i class="fas fa-sync-alt"></i> Atualizar
-            </button>
-          </li>
-        </ul>
-      </div>
-    </div>
-  </nav>
 
-  <!-- Alert Container -->
-  <div class="alert-container" id="alertContainer"></div>
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="dot"></div>
+    MONITOR360
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-time" id="clock">--:--:--</span>
+    <button class="btn-refresh" onclick="refreshAll()">
+      <i class="fas fa-sync-alt"></i> Atualizar
+    </button>
+  </div>
+</div>
 
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <a href="/" class="active">
-      <i class="fas fa-home"></i> Dashboard
-    </a>
-    <a href="/pedidos">
-      <i class="fas fa-boxes"></i> Pedidos
-    </a>
-    <a href="/anomalias">
-      <i class="fas fa-exclamation-triangle"></i> Anomalias
-    </a>
-    <hr>
-    <a href="#" onclick="alert('Em desenvolvimento')">
-      <i class="fas fa-cog"></i> Configurações
-    </a>
+<!-- TOAST -->
+<div class="toast-container" id="toasts"></div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <a href="/" class="nav-item-s active"><i class="fas fa-th-large"></i> Dashboard</a>
+  <a href="/pedidos" class="nav-item-s"><i class="fas fa-boxes"></i> Pedidos</a>
+  <a href="/anomalias" class="nav-item-s"><i class="fas fa-exclamation-triangle"></i> Anomalias</a>
+  <hr class="nav-divider">
+  <a href="#" class="nav-item-s" onclick="alert('Em desenvolvimento')"><i class="fas fa-cog"></i> Config</a>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <div class="page-title">
+    <i class="fas fa-th-large" style="color:var(--accent);font-size:18px"></i>
+    DASH<span>BOARD</span>
   </div>
 
-  <!-- Main Content -->
-  <div class="main-content">
-    <div class="row">
-      <div class="col-12">
-        <h1 class="mb-4">
-          <i class="fas fa-tachometer-alt"></i> Dashboard
-        </h1>
-      </div>
+  <!-- MÉTRICAS TOPO -->
+  <div class="grid-4">
+    <div class="card metric blue">
+      <div class="metric-val" id="m-anymarket">—</div>
+      <div class="metric-label">PEDIDOS ANYMARKET</div>
+      <div class="metric-sub" id="m-24h">— nas últimas 24h</div>
     </div>
-
-    <!-- Métricas Gerais -->
-    <div class="row" id="metricas">
-      <div class="col-md-3">
-        <div class="card metric-card">
-          <div class="metric-value" id="total-anymarket">-</div>
-          <div class="metric-label">AnyMarket</div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card metric-card">
-          <div class="metric-value" id="total-jet">-</div>
-          <div class="metric-label">JET</div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card metric-card">
-          <div class="metric-value" id="total-onclick">-</div>
-          <div class="metric-label">Onclick</div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card metric-card">
-          <div class="metric-value text-danger" id="total-anomalias">-</div>
-          <div class="metric-label">Anomalias</div>
-        </div>
-      </div>
+    <div class="card metric orange">
+      <div class="metric-val" id="m-jet">—</div>
+      <div class="metric-label">INTEGRADOS JET</div>
+      <div class="metric-sub" id="m-taxa">taxa de sync: —%</div>
     </div>
+    <div class="card metric yellow">
+      <div class="metric-val" id="m-travados">—</div>
+      <div class="metric-label">PEDIDOS TRAVADOS</div>
+      <div class="metric-sub">sem update há +1h</div>
+    </div>
+    <div class="card metric red">
+      <div class="metric-val" id="m-anomalias">—</div>
+      <div class="metric-label">ANOMALIAS ABERTAS</div>
+      <div class="metric-sub">não resolvidas</div>
+    </div>
+  </div>
 
-    <!-- Taxa de Sincronização -->
-    <div class="row">
-      <div class="col-md-6">
-        <div class="card">
-          <div class="card-header">
-            <i class="fas fa-sync"></i> Taxa de Sincronização
-          </div>
-          <div class="card-body">
-            <div class="progress" style="height: 30px;">
-              <div class="progress-bar bg-success" id="taxa-sincronizacao" style="width: 0%">
-                <span id="taxa-texto">0%</span>
-              </div>
-            </div>
-            <small class="text-muted mt-2 d-block">
-              Pedidos que chegaram na JET / Total de pedidos
-            </small>
-          </div>
+  <!-- PIPELINE FLOW -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header"><i class="fas fa-route"></i> FLUXO DO PIPELINE</div>
+    <div class="pipeline-flow" id="pipeline-flow">
+      <div class="loading">Carregando pipeline...</div>
+    </div>
+  </div>
+
+  <!-- LINHA 2: SYNC + MARKETPLACE -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-sync"></i> SINCRONIZAÇÃO JET</div>
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span style="font-size:11px;color:var(--text-muted)">Pedidos integrados / Total recebidos</span>
+          <span id="taxa-pct" style="font-size:24px;font-weight:700;color:var(--accent)">—%</span>
         </div>
-      </div>
-
-      <div class="col-md-6">
-        <div class="card">
-          <div class="card-header">
-            <i class="fas fa-clock"></i> Últimas 24h
-          </div>
-          <div class="card-body">
-            <div id="ultimas24h">
-              <p class="text-muted">Carregando...</p>
-            </div>
-          </div>
+        <div class="sync-bar-wrap"><div class="sync-bar" id="taxa-bar" style="width:0%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:4px">
+          <span id="sync-jet">JET: —</span>
+          <span id="sync-any">AnyMarket: —</span>
         </div>
       </div>
     </div>
 
-    <!-- Gráficos -->
-    <div class="row">
-      <div class="col-md-6">
-        <div class="card">
-          <div class="card-header">
-            <i class="fas fa-chart-bar"></i> Status por Plataforma
-          </div>
-          <div class="card-body">
-            <canvas id="graficoStatus"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-md-6">
-        <div class="card">
-          <div class="card-header">
-            <i class="fas fa-chart-pie"></i> Distribuição de Pedidos
-          </div>
-          <div class="card-body">
-            <canvas id="graficoPedidos"></canvas>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Anomalias Recentes -->
-    <div class="row">
-      <div class="col-12">
-        <div class="card">
-          <div class="card-header">
-            <i class="fas fa-exclamation-triangle"></i> Anomalias Recentes
-          </div>
-          <div class="card-body">
-            <div class="table-responsive">
-              <table class="table table-hover" id="tabelaAnomalias">
-                <thead>
-                  <tr>
-                    <th>Pedido</th>
-                    <th>Tipo</th>
-                    <th>Descrição</th>
-                    <th>Origem</th>
-                    <th>Data</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td colspan="6" class="text-center text-muted">Carregando...</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+    <div class="card">
+      <div class="card-header"><i class="fas fa-store"></i> POR MARKETPLACE</div>
+      <div class="card-body" id="marketplace-list">
+        <div class="loading">Carregando...</div>
       </div>
     </div>
   </div>
 
-  <!-- Footer -->
-  <div class="footer">
-    <p>MONITOR360 © 2026 | Última atualização: <span id="lastUpdate">-</span></p>
+  <!-- LINHA 3: GRÁFICOS -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-chart-bar"></i> STATUS POR PLATAFORMA</div>
+      <div class="card-body">
+        <div class="chart-wrap"><canvas id="chartStatus"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><i class="fas fa-chart-line"></i> VOLUME ÚLTIMAS 24H</div>
+      <div class="card-body">
+        <div class="chart-wrap"><canvas id="chartVolume"></canvas></div>
+      </div>
+    </div>
   </div>
 
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- ANOMALIAS -->
+  <div class="card">
+    <div class="card-header" style="justify-content:space-between">
+      <span><i class="fas fa-exclamation-triangle"></i> ANOMALIAS RECENTES</span>
+      <a href="/anomalias" style="color:var(--accent);font-size:11px;text-decoration:none">ver todas →</a>
+    </div>
+    <div class="card-body" style="padding:0">
+      <table class="tbl" id="tbl-anomalias">
+        <thead>
+          <tr>
+            <th>Pedido</th>
+            <th>Tipo</th>
+            <th>Descrição</th>
+            <th>Marketplace</th>
+            <th>Data</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody><tr><td colspan="6" class="loading">Carregando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
 
-  <script>
-    // Função para mostrar alertas
-    function showAlert(message, type = 'info') {
-      const alertContainer = document.getElementById('alertContainer');
-      const alertId = 'alert-' + Date.now();
-      
-      const alertHtml = `
-        <div class="alert alert-${type} alert-dismissible fade show" id="${alertId}" role="alert">
-          ${message}
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-      `;
-      
-      alertContainer.innerHTML += alertHtml;
-      
-      setTimeout(() => {
-        const alert = document.getElementById(alertId);
-        if (alert) alert.remove();
-      }, 5000);
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let chartStatus = null;
+let chartVolume = null;
+
+// ── CLOCK ──
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('pt-BR');
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ── TOAST ──
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast-item ${type}`;
+  el.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':'exclamation-circle'}" style="color:var(--${type==='success'?'success':'danger'})"></i> ${msg}`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ── MÉTRICAS ──
+async function carregarMetricas() {
+  try {
+    const r = await fetch('/api/metricas');
+    const d = await r.json();
+    if (!d.success) return;
+    const { metricas, anomaliasNaoResolvidas, pedidosTravados, porEstagio, taxaSincronizacaoJet, pedidos24h, porMarketplace } = d.data;
+
+    document.getElementById('m-anymarket').textContent = metricas.ANYMARKET ?? '—';
+    document.getElementById('m-jet').textContent = metricas.JET ?? '—';
+    document.getElementById('m-travados').textContent = pedidosTravados ?? '—';
+    document.getElementById('m-anomalias').textContent = anomaliasNaoResolvidas ?? '—';
+    document.getElementById('m-24h').textContent = `${pedidos24h ?? 0} nas últimas 24h`;
+    document.getElementById('m-taxa').textContent = `taxa de sync: ${taxaSincronizacaoJet ?? 0}%`;
+
+    // taxa bar
+    const taxa = taxaSincronizacaoJet ?? 0;
+    document.getElementById('taxa-pct').textContent = taxa + '%';
+    document.getElementById('taxa-bar').style.width = taxa + '%';
+    document.getElementById('sync-jet').textContent = `JET: ${metricas.JET ?? 0}`;
+    document.getElementById('sync-any').textContent = `AnyMarket: ${metricas.ANYMARKET ?? 0}`;
+
+    // pipeline
+    renderPipeline(porEstagio);
+
+    // marketplace
+    renderMarketplace(porMarketplace);
+
+  } catch(e) { console.error(e); }
+}
+
+// ── PIPELINE ──
+function renderPipeline(porEstagio) {
+  const stages = [
+    { key: 'ANYMARKET',         label: 'ANYMARKET',  icon: 'A' },
+    { key: 'JET',               label: 'JET',         icon: 'J' },
+    { key: 'ONCLICK',           label: 'ONCLICK',     icon: 'O' },
+    { key: 'RETORNO_JET',       label: 'RET.JET',     icon: 'RJ' },
+    { key: 'RETORNO_ANYMARKET', label: 'RET.ANY',     icon: 'RA' },
+  ];
+  const max = Math.max(...stages.map(s => porEstagio[s.key] || 0), 1);
+  const el = document.getElementById('pipeline-flow');
+  el.innerHTML = stages.map(s => {
+    const count = porEstagio[s.key] || 0;
+    const pct = count / max;
+    const cls = count > 0 ? (pct < 0.5 ? 'warning' : 'active') : '';
+    return `
+      <div class="pipeline-stage">
+        <div class="stage-bubble ${cls}">${s.icon}</div>
+        <div class="stage-count">${count}</div>
+        <div class="stage-name">${s.label}</div>
+      </div>`;
+  }).join('');
+}
+
+// ── MARKETPLACE ──
+function renderMarketplace(list) {
+  const el = document.getElementById('marketplace-list');
+  if (!list || !list.length) {
+    el.innerHTML = '<div class="empty-state"><i class="fas fa-store"></i>Sem dados</div>';
+    return;
+  }
+  const max = Math.max(...list.map(m => parseInt(m.total)), 1);
+  const mktColors = {
+    SHOPEE: 'var(--accent2)',
+    MERCADO_LIVRE: '#ffd600',
+    MAGAZINE_LUIZA: '#64b5f6'
+  };
+  el.innerHTML = list.map(m => {
+    const pct = (parseInt(m.total) / max * 100).toFixed(0);
+    const color = mktColors[m.marketplace] || 'var(--accent)';
+    const badgeCls = 'badge-' + (m.marketplace || 'default-mkt');
+    return `
+      <div class="mkt-item">
+        <span class="badge-mkt ${badgeCls}">${m.marketplace || 'N/A'}</span>
+        <div class="mkt-bar-bg"><div class="mkt-bar" style="width:${pct}%;background:${color}"></div></div>
+        <span style="font-size:12px;font-weight:700;min-width:30px;text-align:right">${m.total}</span>
+      </div>`;
+  }).join('');
+}
+
+// ── ANOMALIAS ──
+async function carregarAnomalias() {
+  try {
+    const r = await fetch('/api/anomalias?limit=8&resolvida=false');
+    const d = await r.json();
+    if (!d.success) return;
+    const tbody = document.querySelector('#tbl-anomalias tbody');
+    if (!d.anomalias.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><i class="fas fa-check-circle" style="color:var(--success)"></i>Nenhuma anomalia aberta</td></tr>';
+      return;
     }
+    tbody.innerHTML = d.anomalias.map(a => {
+      const badgeCls = 'badge-' + (a.tipo in {'NAO_INTEGROU_JET':1,'FATURADO_APOS_ENVIO':1,'TRAVADO':1} ? a.tipo : 'default');
+      const mktCls = 'badge-' + (a.marketplace || 'default-mkt');
+      return `<tr>
+        <td style="font-weight:600;color:var(--accent);font-size:11px">${a.pedido_id}</td>
+        <td><span class="badge-tipo ${badgeCls}">${a.tipo}</span></td>
+        <td style="color:var(--text-muted);font-size:11px;max-width:220px">${a.descricao || '-'}</td>
+        <td>${a.marketplace ? `<span class="badge-mkt ${mktCls}">${a.marketplace}</span>` : '-'}</td>
+        <td style="color:var(--text-muted);font-size:11px">${new Date(a.criado_em).toLocaleString('pt-BR')}</td>
+        <td><button class="btn-resolver" onclick="resolver(${a.id}, this)">Resolver</button></td>
+      </tr>`;
+    }).join('');
+  } catch(e) { console.error(e); }
+}
 
-    // Carregar métricas
-    async function carregarMetricas() {
-      try {
-        const response = await fetch('/api/metricas');
-        const data = await response.json();
+async function resolver(id, btn) {
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    const r = await fetch(`/api/anomalias/${id}/resolver`, { method: 'PATCH' });
+    const d = await r.json();
+    if (d.success) {
+      btn.closest('tr').remove();
+      toast('Anomalia marcada como resolvida');
+      const el = document.getElementById('m-anomalias');
+      el.textContent = Math.max(0, parseInt(el.textContent) - 1);
+    }
+  } catch(e) { toast('Erro ao resolver', 'danger'); btn.disabled = false; btn.textContent = 'Resolver'; }
+}
 
-        if (!data.success) {
-          console.error('Erro na API:', data.error);
-          return;
+// ── GRÁFICOS ──
+async function carregarGraficos() {
+  try {
+    const r = await fetch('/api/grafico/status');
+    const d = await r.json();
+    if (!d.success) return;
+
+    // Chart Status
+    const statusData = d.porStatus || {};
+    const allStatus = [...new Set([
+      ...(statusData.ANYMARKET||[]).map(s=>s.status),
+      ...(statusData.JET||[]).map(s=>s.status),
+      ...(statusData.ONCLICK||[]).map(s=>s.status)
+    ])];
+
+    const ctxStatus = document.getElementById('chartStatus').getContext('2d');
+    if (chartStatus) chartStatus.destroy();
+    chartStatus = new Chart(ctxStatus, {
+      type: 'bar',
+      data: {
+        labels: allStatus,
+        datasets: [
+          { label: 'AnyMarket', data: allStatus.map(s => (statusData.ANYMARKET||[]).find(x=>x.status===s)?.total||0), backgroundColor: 'rgba(0,212,255,.7)' },
+          { label: 'JET',       data: allStatus.map(s => (statusData.JET||[]).find(x=>x.status===s)?.total||0),       backgroundColor: 'rgba(255,107,53,.7)' },
+          { label: 'Onclick',   data: allStatus.map(s => (statusData.ONCLICK||[]).find(x=>x.status===s)?.total||0),   backgroundColor: 'rgba(0,230,118,.7)' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#64748b', font: { family: 'JetBrains Mono', size: 11 } } } },
+        scales: {
+          x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(30,45,64,.5)' } },
+          y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(30,45,64,.5)' } }
         }
-
-        // Atualizar cards
-        document.getElementById('total-anymarket').textContent = data.data.ANYMARKET || 0;
-        document.getElementById('total-jet').textContent = data.data.JET || 0;
-        document.getElementById('total-onclick').textContent = data.data.ONCLICK || 0;
-        document.getElementById('total-anomalias').textContent = data.data.anomaliasNaoResolvidas || 0;
-
-        // Taxa de sincronização
-        const taxa = data.data.taxaSincronizacaoJet || 0;
-        document.getElementById('taxa-sincronizacao').style.width = taxa + '%';
-        document.getElementById('taxa-texto').textContent = taxa.toFixed(1) + '%';
-
-      } catch (error) {
-        console.error('Erro ao carregar métricas:', error);
       }
-    }
+    });
 
-    // Carregar anomalias
-    async function carregarAnomalias() {
-      try {
-        const response = await fetch('/api/anomalias?limit=5&resolvida=false');
-        const data = await response.json();
-
-        if (!data.success) {
-          console.error('Erro na API:', data.error);
-          return;
+    // Chart Volume
+    const vol = d.volumeHoras || [];
+    const ctxVol = document.getElementById('chartVolume').getContext('2d');
+    if (chartVolume) chartVolume.destroy();
+    chartVolume = new Chart(ctxVol, {
+      type: 'line',
+      data: {
+        labels: vol.map(v => new Date(v.hora).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})),
+        datasets: [{
+          label: 'Pedidos/hora',
+          data: vol.map(v => parseInt(v.total)),
+          borderColor: 'var(--accent)',
+          backgroundColor: 'rgba(0,212,255,.1)',
+          tension: .4, fill: true,
+          pointBackgroundColor: 'var(--accent)', pointRadius: 3
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#64748b', font: { family: 'JetBrains Mono', size: 11 } } } },
+        scales: {
+          x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(30,45,64,.5)' } },
+          y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(30,45,64,.5)' } }
         }
-
-        const tbody = document.querySelector('#tabelaAnomalias tbody');
-        tbody.innerHTML = '';
-
-        if (data.anomalias.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" class="text-center text-success">✅ Nenhuma anomalia!</td></tr>';
-          return;
-        }
-
-        data.anomalias.forEach(anomalia => {
-          const row = `
-            <tr>
-              <td><strong>${anomalia.pedido_id}</strong></td>
-              <td><span class="anomalia-badge">${anomalia.tipo}</span></td>
-              <td>-</td>
-              <td>${anomalia.origem || '-'}</td>
-              <td>${new Date(anomalia.criado_em).toLocaleString('pt-BR')}</td>
-              <td><span class="badge bg-danger">Não resolvida</span></td>
-            </tr>
-          `;
-          tbody.innerHTML += row;
-        });
-
-      } catch (error) {
-        console.error('Erro ao carregar anomalias:', error);
       }
-    }
+    });
+  } catch(e) { console.error(e); }
+}
 
-    // Carregar gráfico
-    async function carregarGrafico() {
-      try {
-        const response = await fetch('/api/grafico/status');
-        const data = await response.json();
+// ── REFRESH ──
+function refreshAll() {
+  carregarMetricas();
+  carregarAnomalias();
+  carregarGraficos();
+}
 
-        if (!data.success) {
-          console.error('Erro na API:', data.error);
-          return;
-        }
-
-        const labels = [];
-        const datasets = [];
-        const cores = ['#27ae60', '#3498db', '#e74c3c'];
-        const plataformas = ['ANYMARKET', 'JET', 'ONCLICK'];
-
-        plataformas.forEach((plataforma, index) => {
-          const statusData = data[plataforma] || [];
-          if (labels.length === 0 && statusData.length > 0) {
-            labels.push(...statusData.map(s => s.status));
-          }
-          datasets.push({
-            label: plataforma,
-            data: statusData.map(s => s.total),
-            backgroundColor: cores[index]
-          });
-        });
-
-        const ctx = document.getElementById('graficoStatus').getContext('2d');
-        new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: labels,
-            datasets: datasets
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: { position: 'top' }
-            }
-          }
-        });
-
-      } catch (error) {
-        console.error('Erro ao carregar gráfico:', error);
-      }
-    }
-
-    // Atualizar hora
-    function updateTime() {
-      document.getElementById('lastUpdate').textContent = new Date().toLocaleString('pt-BR');
-    }
-    updateTime();
-    setInterval(updateTime, 1000);
-
-    // Inicializar
-    carregarMetricas();
-    carregarAnomalias();
-    carregarGrafico();
-
-    // Atualizar a cada 30 segundos
-    setInterval(() => {
-      carregarMetricas();
-      carregarAnomalias();
-    }, 30000);
-  </script>
+refreshAll();
+setInterval(refreshAll, 30000);
+</script>
 </body>
 </html>
