@@ -33,35 +33,33 @@ function detectSheetType(headers) {
     return 'WEBCONTINENTAL';
   }
   
+  // Planilha da MadeiraMadeira
+  if (headerStr.includes('pedido') && headerStr.includes('cliente') && headerStr.includes('status')) {
+    // Verifica se tem coluna "Pedido" (sem acento) - formato MadeiraMadeira
+    const exactHeaders = headers.map(h => h.toLowerCase());
+    if (exactHeaders.includes('pedido') && exactHeaders.includes('cliente') && exactHeaders.includes('status')) {
+      return 'MADEIRAMADEIRA';
+    }
+  }
+  
+  // Tenta detectar pelo conteúdo da primeira linha
   return 'DESCONHECIDO';
 }
 
 // Extrair dados da planilha Magazine Luiza
 function extractMagazineLuizaOrder(row) {
-  // Encontra a coluna correta do número do pedido
   let pedidoId = null;
-  for (const [key, value] of Object.entries(row)) {
-    if (key.toLowerCase().includes('número do pedido') || key.toLowerCase().includes('numero do pedido')) {
-      pedidoId = value?.toString();
-      break;
-    }
-  }
-  
-  // Se não achou, tenta por posição (segunda coluna geralmente)
-  if (!pedidoId) {
-    const values = Object.values(row);
-    if (values.length > 1) {
-      pedidoId = values[1]?.toString();
-    }
-  }
-  
-  // Extrai outros dados
   let cliente = 'N/A';
   let valor = 0;
   let status = 'DESCONHECIDO';
+  let data = null;
   
   for (const [key, value] of Object.entries(row)) {
     const lowerKey = key.toLowerCase();
+    
+    if (lowerKey.includes('número do pedido') || lowerKey.includes('numero do pedido')) {
+      pedidoId = value?.toString();
+    }
     if (lowerKey.includes('nome do cliente')) {
       cliente = value?.toString() || 'N/A';
     }
@@ -72,6 +70,17 @@ function extractMagazineLuizaOrder(row) {
     if (lowerKey.includes('status pacote') || lowerKey.includes('status')) {
       status = value?.toString() || 'DESCONHECIDO';
     }
+    if (lowerKey.includes('data do pacote') || lowerKey.includes('data')) {
+      data = value;
+    }
+  }
+  
+  // Se não achou o pedido, tenta a segunda coluna (padrão Magalu)
+  if (!pedidoId) {
+    const values = Object.values(row);
+    if (values.length > 1) {
+      pedidoId = values[1]?.toString();
+    }
   }
   
   return {
@@ -81,6 +90,7 @@ function extractMagazineLuizaOrder(row) {
     status: status,
     valor_total: valor,
     cliente: cliente,
+    data: data,
     raw: row
   };
 }
@@ -91,26 +101,26 @@ function extractWebContinentalOrder(row) {
   let cliente = 'N/A';
   let valor = 0;
   let status = 'DESCONHECIDO';
+  let data = null;
   
   for (const [key, value] of Object.entries(row)) {
     const lowerKey = key.toLowerCase();
     
-    // PEDIDO PARCEIRO ou PEDIDO MARKETPLACE é o ID
     if (lowerKey.includes('pedido parceiro') || lowerKey.includes('pedido marketplace')) {
       pedidoId = value?.toString();
     }
-    // CLIENTE
     if (lowerKey.includes('cliente')) {
       cliente = value?.toString() || 'N/A';
     }
-    // TOTAL DO PEDIDO
     if (lowerKey.includes('total do pedido')) {
       const valStr = value?.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
       valor = parseFloat(valStr) || 0;
     }
-    // STATUS ATUAL
     if (lowerKey.includes('status atual')) {
       status = value?.toString() || 'DESCONHECIDO';
+    }
+    if (lowerKey.includes('data criação') || lowerKey.includes('data criacao')) {
+      data = value;
     }
   }
   
@@ -129,6 +139,62 @@ function extractWebContinentalOrder(row) {
     status: status,
     valor_total: valor,
     cliente: cliente,
+    data: data,
+    raw: row
+  };
+}
+
+// Extrair dados da planilha MadeiraMadeira
+function extractMadeiraMadeiraOrder(row) {
+  let pedidoId = null;
+  let cliente = 'N/A';
+  let valor = 0;
+  let status = 'DESCONHECIDO';
+  let data = null;
+  
+  for (const [key, value] of Object.entries(row)) {
+    const lowerKey = key.toLowerCase();
+    const keyClean = lowerKey.replace(/[^a-z]/g, '');
+    
+    // Coluna "Pedido" (exata) - MadeiraMadeira
+    if (key === 'Pedido' || lowerKey === 'pedido') {
+      pedidoId = value?.toString();
+    }
+    // Cliente
+    if (lowerKey.includes('cliente')) {
+      cliente = value?.toString() || 'N/A';
+    }
+    // Valor Pedido
+    if (lowerKey.includes('valor pedido') || lowerKey === 'valor_pedido') {
+      const valStr = value?.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+      valor = parseFloat(valStr) || 0;
+    }
+    // Status
+    if (lowerKey === 'status') {
+      status = value?.toString() || 'DESCONHECIDO';
+    }
+    // Data Pedido
+    if (lowerKey.includes('data pedido')) {
+      data = value;
+    }
+  }
+  
+  // Se não achou o pedido, tenta a terceira coluna (padrão do CSV)
+  if (!pedidoId) {
+    const values = Object.values(row);
+    if (values.length > 2) {
+      pedidoId = values[2]?.toString(); // Coluna "Pedido" é a terceira no CSV
+    }
+  }
+  
+  return {
+    pedido_id_original: pedidoId,
+    pedido_id_normalizado: pedidoId ? normalizeOrderId(pedidoId) : null,
+    marketplace: 'MADEIRAMADEIRA',
+    status: status,
+    valor_total: valor,
+    cliente: cliente,
+    data: data,
     raw: row
   };
 }
@@ -176,6 +242,9 @@ router.get('/', (req, res) => {
         .badge-danger { background: #ff1744; color: #fff; }
         .badge-warning { background: #ffab00; color: #000; }
         .badge-info { background: #00d4ff; color: #000; }
+        .badge-magalu { background: #ff0066; color: #fff; }
+        .badge-webcontinental { background: #00b4d8; color: #fff; }
+        .badge-madeira { background: #2d6a4f; color: #fff; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
         th, td { padding: 8px; text-align: left; border-bottom: 1px solid #1e2d40; }
         th { color: #64748b; font-size: 10px; text-transform: uppercase; }
@@ -183,13 +252,25 @@ router.get('/', (req, res) => {
         .spinner { animation: spin 1s linear infinite; display: inline-block; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .debug-box { background: #1a2332; padding: 10px; border-radius: 4px; font-size: 11px; margin-top: 10px; overflow-x: auto; }
+        .supported-formats {
+          display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap;
+        }
+        .format-badge {
+          background: #1a2332; padding: 8px 16px; border-radius: 20px;
+          font-size: 12px; border-left: 3px solid #00d4ff;
+        }
       </style>
     </head>
     <body>
       <div class="container">
         <h1>📤 Comparar Planilha de Vendas</h1>
         <p>Envie uma planilha (Excel/CSV) para verificar quais pedidos NÃO foram integrados no sistema.</p>
-        <p style="color: #00d4ff; font-size: 12px;">✅ Suporta planilhas da Magazine Luiza e WebContinental</p>
+        
+        <div class="supported-formats">
+          <div class="format-badge">📱 Magazine Luiza</div>
+          <div class="format-badge">💻 WebContinental</div>
+          <div class="format-badge">🪵 MadeiraMadeira</div>
+        </div>
         
         <div class="upload-area" id="uploadArea">
           <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
@@ -242,6 +323,15 @@ router.get('/', (req, res) => {
           }
         }
         
+        function getMarketplaceBadge(marketplace) {
+          const badges = {
+            'MAGAZINE_LUIZA': '<span class="badge badge-magalu">📱 Magazine Luiza</span>',
+            'WEBCONTINENTAL': '<span class="badge badge-webcontinental">💻 WebContinental</span>',
+            'MADEIRAMADEIRA': '<span class="badge badge-madeira">🪵 MadeiraMadeira</span>'
+          };
+          return badges[marketplace] || '<span class="badge badge-warning">❓ ' + marketplace + '</span>';
+        }
+        
         function displayResults(data) {
           if (data.error) {
             results.innerHTML = '<div class="result-card" style="color: #ffab00;">⚠️ ' + data.error + '</div>';
@@ -263,25 +353,25 @@ router.get('/', (req, res) => {
           html += '</div>';
           
           html += '<div class="debug-box">';
-          html += '🔍 Tipo de planilha detectada: <strong>' + (data.tipo_planilha || 'DESCONHECIDO') + '</strong><br>';
+          html += '🔍 Tipo de planilha detectada: ' + getMarketplaceBadge(data.tipo_planilha) + '<br>';
           html += '🔍 Normalização de IDs: IDs da planilha são comparados com e sem sufixo (-1, -2)';
           html += '</div>';
           
           if (naoIntegrados > 0) {
             html += '<h3 style="color: #ffab00; margin: 20px 0 10px;">⚠️ Pedidos NÃO Integrados (' + naoIntegrados + ')</h3>';
-            html += '<div style="overflow-x: auto;"><table><thead><tr>';
-            html += '<th>ID na Planilha</th><th>ID Normalizado</th><th>IDs no Banco</th><th>Marketplace</th><th>Status</th><th>Valor</th><th>Cliente</th>';
-            html += '</tr></thead><tbody>';
+            html += '<div style="overflow-x: auto;"><table><thead></tr>';
+            html += '<th>ID na Planilha</th><th>ID Normalizado</th><th>Marketplace</th><th>Status</th><th>Valor</th><th>Cliente</th><th>Data</th>';
+            html += '</thead><tbody>';
             
             data.nao_integrados.slice(0, 50).forEach(p => {
               html += '<tr>';
               html += '<td><code>' + (p.pedido_id_original || 'N/A') + '</code></td>';
               html += '<td><code>' + (p.pedido_id_normalizado || '-') + '</code></td>';
-              html += '<td>' + (p.ids_encontrados?.join(', ') || '-') + '</td>';
-              html += '<td><span class="badge badge-warning">' + (p.marketplace || 'N/A') + '</span></td>';
+              html += '<td>' + getMarketplaceBadge(p.marketplace) + '</td>';
               html += '<td>' + (p.status || '-') + '</td>';
               html += '<td>R$ ' + (parseFloat(p.valor_total)?.toFixed(2) || '0,00') + '</td>';
               html += '<td>' + (p.cliente?.substring(0, 40) || '-') + '</td>';
+              html += '<td>' + (p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '-') + '</td>';
               html += '</tr>';
             });
             
@@ -322,7 +412,7 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
     const tipoPlanilha = detectSheetType(headers);
     
     console.log('📋 Tipo de planilha detectado:', tipoPlanilha);
-    console.log('📋 Headers:', headers);
+    console.log('📋 Headers:', headers.slice(0, 10));
 
     // Extrair pedidos conforme o tipo
     let pedidosPlanilha = [];
@@ -331,34 +421,45 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
       pedidosPlanilha = rawData.map(row => extractMagazineLuizaOrder(row));
     } else if (tipoPlanilha === 'WEBCONTINENTAL') {
       pedidosPlanilha = rawData.map(row => extractWebContinentalOrder(row));
+    } else if (tipoPlanilha === 'MADEIRAMADEIRA') {
+      pedidosPlanilha = rawData.map(row => extractMadeiraMadeiraOrder(row));
     } else {
-      // Fallback: tenta detectar automaticamente
-      pedidosPlanilha = rawData.map(row => {
-        let pedidoId = null;
-        const values = Object.values(row);
-        if (values.length > 0) pedidoId = values[0]?.toString();
-        if (values.length > 1 && !pedidoId) pedidoId = values[1]?.toString();
+      // Fallback: tenta todos os extratores
+      for (const row of rawData) {
+        let extracted = null;
         
-        return {
-          pedido_id_original: pedidoId,
-          pedido_id_normalizado: pedidoId ? normalizeOrderId(pedidoId) : null,
-          marketplace: 'DESCONHECIDO',
-          status: 'DESCONHECIDO',
-          valor_total: 0,
-          cliente: 'N/A',
-          raw: row
-        };
-      });
+        // Tenta MadeiraMadeira primeiro (mais específico)
+        const mmTry = extractMadeiraMadeiraOrder(row);
+        if (mmTry.pedido_id_original && mmTry.pedido_id_original !== 'N/A' && mmTry.pedido_id_original.length > 5) {
+          extracted = mmTry;
+        } else {
+          // Tenta Magalu
+          const magaluTry = extractMagazineLuizaOrder(row);
+          if (magaluTry.pedido_id_original && magaluTry.pedido_id_original !== 'N/A' && magaluTry.pedido_id_original.includes('LU-')) {
+            extracted = magaluTry;
+          } else {
+            // Tenta WebContinental
+            const webTry = extractWebContinentalOrder(row);
+            if (webTry.pedido_id_original && webTry.pedido_id_original !== 'N/A' && webTry.pedido_id_original.length > 5) {
+              extracted = webTry;
+            } else {
+              extracted = magaluTry;
+            }
+          }
+        }
+        
+        pedidosPlanilha.push(extracted);
+      }
     }
 
     // Filtrar pedidos válidos
-    const pedidosValidos = pedidosPlanilha.filter(p => p.pedido_id_original && p.pedido_id_original !== 'N/A');
+    const pedidosValidos = pedidosPlanilha.filter(p => p.pedido_id_original && p.pedido_id_original !== 'N/A' && p.pedido_id_original !== 'undefined');
     
     if (pedidosValidos.length === 0) {
-      return res.status(400).json({ error: 'Não foi possível identificar os IDs dos pedidos na planilha.' });
+      return res.status(400).json({ error: 'Não foi possível identificar os IDs dos pedidos na planilha. Verifique se há uma coluna com "Pedido", "Número do pedido" ou similar.' });
     }
 
-    // Lista de possíveis IDs para buscar (original e normalizado)
+    // Lista de possíveis IDs para buscar
     const possiveisIds = [];
     for (const pedido of pedidosValidos) {
       possiveisIds.push(pedido.pedido_id_original);
@@ -368,6 +469,9 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
       // Também busca com sufixo -1 (caso o banco tenha e a planilha não)
       if (!pedido.pedido_id_original.endsWith('-1')) {
         possiveisIds.push(pedido.pedido_id_original + '-1');
+      }
+      if (pedido.pedido_id_normalizado && !pedido.pedido_id_normalizado.endsWith('-1')) {
+        possiveisIds.push(pedido.pedido_id_normalizado + '-1');
       }
     }
 
@@ -384,21 +488,17 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
     // Verificar cada pedido
     const naoIntegrados = [];
     for (const pedido of pedidosValidos) {
-      // Verifica se algum dos possíveis IDs está no banco
       const idsToCheck = [
         pedido.pedido_id_original,
         pedido.pedido_id_normalizado,
         pedido.pedido_id_original + '-1',
-        pedido.pedido_id_normalizado + '-1'
+        pedido.pedido_id_normalizado ? pedido.pedido_id_normalizado + '-1' : null
       ].filter(id => id);
       
       const encontrados = idsToCheck.filter(id => integradosSet.has(id));
       
       if (encontrados.length === 0) {
-        naoIntegrados.push({
-          ...pedido,
-          ids_encontrados: encontrados
-        });
+        naoIntegrados.push(pedido);
       }
     }
 
@@ -416,8 +516,10 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
         pedidosValidos.length - naoIntegrados.length,
         naoIntegrados.length,
         JSON.stringify({ 
-          nao_integrados: naoIntegrados.slice(0, 100),
-          tipo_planilha: tipoPlanilha 
+          nao_integrados: naoIntegrados.slice(0, 100).map(p => ({
+            id: p.pedido_id_original,
+            marketplace: p.marketplace
+          }))
         })
       ]);
     } catch (err) {
@@ -431,11 +533,11 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
       nao_integrados: naoIntegrados.map(p => ({
         pedido_id_original: p.pedido_id_original,
         pedido_id_normalizado: p.pedido_id_normalizado,
-        ids_encontrados: p.ids_encontrados,
         marketplace: p.marketplace,
         status: p.status,
         valor_total: p.valor_total,
-        cliente: p.cliente
+        cliente: p.cliente,
+        data: p.data
       }))
     });
 
