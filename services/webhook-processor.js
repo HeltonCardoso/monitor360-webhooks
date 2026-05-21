@@ -5,7 +5,7 @@ const notification = require('./notification');
 const jetApi = require('./jet-api');
 const anymarketApi = require('./anymarket-api');
 const onclickApi = require('./onclick-api');
-const { STATUS_MAP } = require('../config/constants');
+const { STATUS_MAP, SLA_ENTRE_ESTAGIOS } = require('../config/constants');
 const { v4: uuidv4 } = require('uuid');
 
 // Cache de deduplicação — evita processar o mesmo webhook duas vezes
@@ -131,26 +131,13 @@ const processAnyMarketEvent = async (payload) => {
     // Ignora pedidos já finalizados (ENTREGUE/CANCELADO) — são históricos que chegam
     // via webhook retroativo e não precisam de rastreamento de pipeline
     const statusFinais = ['ENTREGUE', 'CANCELADO', 'CONCLUDED', 'CANCELED'];
-    const isPedidoFinal = statusFinais.includes(event) || statusFinais.includes(normalizedStatus);
+const isPedidoFinal = statusFinais.includes(event) || statusFinais.includes(normalizedStatus);
 
-    if (!isPedidoFinal) {
-      const jetCheck = await pool.query(
-        `SELECT id FROM tracking_events 
-         WHERE pedido_id = $1 AND origem = $2 LIMIT 1`,
-        [numeroMarketplace, 'JET']
-      );
-
-      if (!jetCheck.rows.length) {
-        await anomalyDetector.createAnomaly(
-          numeroMarketplace,
-          'NAO_INTEGROU_JET',
-          'ANYMARKET',
-          infoRelevante.marketplace
-        );
-      }
-    } else {
-      console.log(`ℹ️  Pedido ${numeroMarketplace} já finalizado (${normalizedStatus}) — ignorando verificação de pipeline`);
-    }
+if (!isPedidoFinal) {
+  console.log(`📊 Pedido ${numeroMarketplace} aguardando integração com JET (SLA: ${SLA_ENTRE_ESTAGIOS.ANYMARKET_para_JET.horas}h)`);
+} else {
+  console.log(`ℹ️  Pedido ${numeroMarketplace} já finalizado (${normalizedStatus}) — ignorando verificação de pipeline`);
+}
 
     // 8️⃣ ANOMALIA: ficou FATURADO depois que JET enviou (exceto ME2)
     // Após Pedido.Enviado da JET, AnyMarket deve ir para PAID_WAITING_DELIVERY

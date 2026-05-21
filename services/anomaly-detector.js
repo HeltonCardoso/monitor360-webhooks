@@ -44,8 +44,10 @@ const checkPipelineStatus = async (pedido_id) => {
     const agora = Date.now();
 
     // Não verificar pipeline de pedidos já finalizados
-    const statusFinais = ['ENTREGUE', 'CANCELADO'];
-    const statusAtual = events.rows.find(r => r.origem === 'ANYMARKET')?.status || '';
+    const statusFinais = ['ENTREGUE', 'CANCELADO', 'CONCLUDED', 'CANCELED'];
+    const anymarketEvent = events.rows.find(r => r.origem === 'ANYMARKET');
+    const statusAtual = anymarketEvent?.status || '';
+    
     if (statusFinais.includes(statusAtual)) {
       console.log(`ℹ️  Pedido ${pedido_id} finalizado (${statusAtual}) — pipeline encerrado`);
       return;
@@ -81,51 +83,65 @@ const checkPipelineStatus = async (pedido_id) => {
       console.log(`   🏁 Pedido com pipeline completo!\n`);
     }
 
-    // ─── Checagem de travamento entre estágios ─────────────────────────────
+    // ─── Checagem de travamento entre estágios (COM SLA) ─────────────────
 
-    // 1. AnyMarket recebido mas JET ainda não integrou
+    // 1. AnyMarket recebido mas JET ainda não integrou (SLA: 1 hora)
     const temAnymarket = origens.includes('ANYMARKET');
     const temJet = origens.includes('JET');
-    const temOnclick = origens.includes('ONCLICK');
 
     if (temAnymarket && !temJet) {
       const eventoAnymarket = events.rows.find(r => r.origem === 'ANYMARKET');
       const horasEsperando = (agora - new Date(eventoAnymarket.ultimo_evento)) / (1000 * 60 * 60);
       const sla = SLA_ENTRE_ESTAGIOS.ANYMARKET_para_JET.horas;
 
+      console.log(`🔍 Pedido ${pedido_id}: aguardando JET há ${horasEsperando.toFixed(2)}h (SLA: ${sla}h)`);
+
+      // SÓ CRIA ANOMALIA SE ULTRAPASSOU O SLA
       if (horasEsperando > sla) {
-        console.warn(`⚠️ Pedido ${pedido_id} travado em ANYMARKET há ${horasEsperando.toFixed(1)}h (SLA: ${sla}h)`);
+        console.warn(`⚠️ Pedido ${pedido_id} travado em ANYMARKET há ${horasEsperando.toFixed(1)}h (SLA: ${sla}h) — CRIANDO ANOMALIA`);
         await createAnomaly(pedido_id, 'NAO_INTEGROU_JET', 'ANYMARKET', null);
+      } else {
+        console.log(`✅ Pedido ${pedido_id} dentro do SLA (${horasEsperando.toFixed(2)}h < ${sla}h) — ainda não é anomalia`);
       }
     }
 
-    // 2. JET integrou mas Onclick ainda não faturou
+    // 2. JET integrou mas Onclick ainda não faturou (SLA: 2 horas)
+    const temOnclick = origens.includes('ONCLICK');
+
     if (temJet && !temOnclick) {
       const eventoJet = events.rows.find(r => r.origem === 'JET');
       const horasEsperando = (agora - new Date(eventoJet.ultimo_evento)) / (1000 * 60 * 60);
       const sla = SLA_ENTRE_ESTAGIOS.JET_para_ONCLICK.horas;
 
+      console.log(`🔍 Pedido ${pedido_id}: JET integrado, aguardando ONCLICK há ${horasEsperando.toFixed(2)}h (SLA: ${sla}h)`);
+
       if (horasEsperando > sla) {
-        console.warn(`⚠️ Pedido ${pedido_id} travado em JET há ${horasEsperando.toFixed(1)}h (SLA: ${sla}h)`);
+        console.warn(`⚠️ Pedido ${pedido_id} travado em JET há ${horasEsperando.toFixed(1)}h (SLA: ${sla}h) — CRIANDO ANOMALIA`);
         await createAnomaly(pedido_id, 'NAO_FATUROU_ONCLICK', 'JET', null);
+      } else {
+        console.log(`✅ Pedido ${pedido_id} dentro do SLA (${horasEsperando.toFixed(2)}h < ${sla}h)`);
       }
     }
 
-    // 3. Onclick faturou mas não houve retorno para a JET
+    // 3. Onclick faturou mas não houve retorno para a JET (SLA: 4 horas)
     if (temOnclick) {
       const eventoOnclick = events.rows.find(r => r.origem === 'ONCLICK');
       const horasEsperando = (agora - new Date(eventoOnclick.ultimo_evento)) / (1000 * 60 * 60);
       const sla = SLA_ENTRE_ESTAGIOS.ONCLICK_para_RETORNO.horas;
       const temRetornoJet = origens.includes('RETORNO_JET');
 
-      if (!temRetornoJet && horasEsperando > sla) {
-        console.warn(`⚠️ Pedido ${pedido_id} faturado mas sem retorno à JET há ${horasEsperando.toFixed(1)}h (SLA: ${sla}h)`);
-        await createAnomaly(pedido_id, 'FATUROU_NAO_RETORNOU', 'ONCLICK', null);
+      if (!temRetornoJet) {
+        console.log(`🔍 Pedido ${pedido_id}: ONCLICK faturou, aguardando RETORNO_JET há ${horasEsperando.toFixed(2)}h (SLA: ${sla}h)`);
+
+        if (horasEsperando > sla) {
+          console.warn(`⚠️ Pedido ${pedido_id} faturado mas sem retorno à JET há ${horasEsperando.toFixed(1)}h (SLA: ${sla}h) — CRIANDO ANOMALIA`);
+          await createAnomaly(pedido_id, 'FATUROU_NAO_RETORNOU', 'ONCLICK', null);
+        }
       }
     }
 
   } catch (error) {
-    console.error('Erro ao verificar pipeline:', error);
+    console.error('❌ Erro ao verificar pipeline:', error);
   }
 };
 
