@@ -8,18 +8,26 @@ const DESCRICAO_ANOMALIA = {
   FATUROU_NAO_RETORNOU: 'Onclick faturou mas JET não confirmou envio',
   FATURADO_APOS_ENVIO:  'AnyMarket ficou como Faturado após envio (não é ME2)',
   ENVIADO_SEM_FATURAMENTO: 'JET enviou sem confirmação de faturamento na Onclick',
-  TRAVADO:              'Pedido sem atualização por mais de 4 horas'
+  TRAVADO:              'Pedido sem atualização por mais de 1 hora',
+  NAO_ENTROU_ONCLICK:   'JET integrou mas pedido não entrou na Onclick',
+  PROXIMO_PRAZO_ENVIO:  'Pedido próximo do prazo de despacho (alerta preventivo)',
+  ATRASO_ENVIO_PRAZO:   'Pedido ULTRAPASSOU o prazo de despacho'
 };
 
 const DashboardController = {
 
   async getMetricasGerais(req, res) {
     try {
-      // Contagem por origem
+      // Contagem por origem (apenas pedidos NÃO finalizados)
       const origemResult = await pool.query(`
-        SELECT origem, COUNT(DISTINCT pedido_id) AS total
-        FROM tracking_events
+        SELECT origem, COUNT(DISTINCT te.pedido_id) AS total
+        FROM tracking_events te
         WHERE origem IN ('ANYMARKET','JET','ONCLICK','RETORNO_JET','RETORNO_ANYMARKET')
+          AND te.pedido_id NOT IN (
+            SELECT pedido_id FROM tracking_events 
+            WHERE origem = 'ANYMARKET' 
+            AND status IN ('ENTREGUE', 'CANCELADO', 'CONCLUDED', 'CANCELED')
+          )
         GROUP BY origem
       `);
       const metricas = { ANYMARKET: 0, JET: 0, ONCLICK: 0, RETORNO_JET: 0, RETORNO_ANYMARKET: 0 };
@@ -31,16 +39,21 @@ const DashboardController = {
       );
       const anomaliasNaoResolvidas = parseInt(anomaliasResult.rows[0].total);
 
-      // Pedidos por estágio do pipeline (onde estão AGORA)
+      // Pedidos por estágio do pipeline (excluindo finalizados)
       const pipelineResult = await pool.query(`
         WITH ultimo_estagio AS (
-          SELECT DISTINCT ON (pedido_id)
-            pedido_id,
-            origem,
-            status,
-            timestamp
-          FROM tracking_events
-          ORDER BY pedido_id, timestamp DESC
+          SELECT DISTINCT ON (te.pedido_id)
+            te.pedido_id,
+            te.origem,
+            te.status,
+            te.timestamp
+          FROM tracking_events te
+          WHERE te.pedido_id NOT IN (
+            SELECT pedido_id FROM tracking_events 
+            WHERE origem = 'ANYMARKET' 
+            AND status IN ('ENTREGUE', 'CANCELADO', 'CONCLUDED', 'CANCELED')
+          )
+          ORDER BY te.pedido_id, te.timestamp DESC
         )
         SELECT origem as estagio, COUNT(*) as total
         FROM ultimo_estagio
@@ -50,13 +63,18 @@ const DashboardController = {
       const porEstagio = {};
       pipelineResult.rows.forEach(r => { porEstagio[r.estagio] = parseInt(r.total); });
 
-      // Pedidos travados (sem update há mais de 1h e pipeline incompleto)
+      // Pedidos travados (sem update há mais de 1h, não finalizados, sem retorno)
       const travadosResult = await pool.query(`
         WITH ultimo_evento AS (
           SELECT DISTINCT ON (pedido_id)
-            pedido_id, origem, timestamp
+            pedido_id, origem, status, timestamp
           FROM tracking_events
           ORDER BY pedido_id, timestamp DESC
+        ),
+        pedidos_finalizados AS (
+          SELECT pedido_id FROM tracking_events
+          WHERE origem = 'ANYMARKET' 
+          AND status IN ('ENTREGUE', 'CANCELADO', 'CONCLUDED', 'CANCELED')
         ),
         pedidos_completos AS (
           SELECT pedido_id FROM tracking_events
@@ -65,8 +83,10 @@ const DashboardController = {
         SELECT COUNT(*) as total
         FROM ultimo_evento u
         WHERE u.timestamp < NOW() - INTERVAL '1 hour'
+          AND u.pedido_id NOT IN (SELECT pedido_id FROM pedidos_finalizados)
           AND u.pedido_id NOT IN (SELECT pedido_id FROM pedidos_completos)
           AND u.origem NOT IN ('RETORNO_ANYMARKET','RETORNO_MARKETPLACE')
+          AND u.status NOT IN ('ENTREGUE', 'CANCELADO', 'CONCLUDED', 'CANCELED')
       `);
       const pedidosTravados = parseInt(travadosResult.rows[0].total);
 
@@ -80,21 +100,51 @@ const DashboardController = {
         WHERE te.criado_em >= NOW() - INTERVAL '24 hours'
           AND te.origem = 'ANYMARKET'
           AND pm.marketplace_origem IS NOT NULL
+          AND te.status NOT IN ('ENTREGUE', 'CANCELADO', 'CONCLUDED', 'CANCELED')
         GROUP BY pm.marketplace_origem
         ORDER BY total DESC
       `);
 
-      // Taxa de sincronização JET
-      const taxaSync = metricas.ANYMARKET > 0
-        ? ((metricas.JET / metricas.ANYMARKET) * 100).toFixed(1)
-        : 0;
-
-      // Pedidos últimas 24h
-      const pedidos24hResult = await pool.query(`
+      // Taxa de sincronização JET (apenas pedidos não finalizados)
+      const anymarketNaoFinalizados = await pool.query(`
         SELECT COUNT(DISTINCT pedido_id) as total
         FROM tracking_events
-        WHERE criado_em >= NOW() - INTERVAL '24 hours'
-          AND origem = 'ANYMARKET'
+        WHERE origem = 'ANYMARKET'
+          AND pedido_id NOT IN (
+            SELECT pedido_id FROM tracking_events 
+            WHERE origem = 'ANYMARKET' 
+            AND status IN ('ENTREGUE', 'CANCELADO', 'CONCLUDED', 'CANCELED')
+          )
+      `);
+      
+      const jetNaoFinalizados = await pool.query(`
+        SELECT COUNT(DISTINCT pedido_id) as total
+        FROM tracking_events
+        WHERE origem = 'JET'
+          AND pedido_id NOT IN (
+            SELECT pedido_id FROM tracking_events 
+            WHERE origem = 'ANYMARKET' 
+            AND status IN ('ENTREGUE', 'CANCELADO', 'CONCLUDED', 'CANCELED')
+          )
+      `);
+      
+      const totalAnymarketAtivos = parseInt(anymarketNaoFinalizados.rows[0].total) || 0;
+      const totalJetAtivos = parseInt(jetNaoFinalizados.rows[0].total) || 0;
+      const taxaSync = totalAnymarketAtivos > 0
+        ? ((totalJetAtivos / totalAnymarketAtivos) * 100).toFixed(1)
+        : 0;
+
+      // Pedidos últimas 24h (ativos, não finalizados)
+      const pedidos24hResult = await pool.query(`
+        SELECT COUNT(DISTINCT te.pedido_id) as total
+        FROM tracking_events te
+        WHERE te.criado_em >= NOW() - INTERVAL '24 hours'
+          AND te.origem = 'ANYMARKET'
+          AND te.pedido_id NOT IN (
+            SELECT pedido_id FROM tracking_events 
+            WHERE origem = 'ANYMARKET' 
+            AND status IN ('ENTREGUE', 'CANCELADO', 'CONCLUDED', 'CANCELED')
+          )
       `);
 
       res.json({
@@ -150,8 +200,13 @@ const DashboardController = {
       const { page = 1, limit = 20, marketplace, travados } = req.query;
       const offset = (parseInt(page) - 1) * parseInt(limit);
 
-      // Monta pipeline por pedido
-      let baseWhere = `WHERE te.origem IN ('ANYMARKET','JET','ONCLICK','RETORNO_JET','RETORNO_ANYMARKET')`;
+      // Monta pipeline por pedido (excluindo finalizados)
+      let baseWhere = `WHERE te.origem IN ('ANYMARKET','JET','ONCLICK','RETORNO_JET','RETORNO_ANYMARKET')
+        AND te.pedido_id NOT IN (
+          SELECT pedido_id FROM tracking_events 
+          WHERE origem = 'ANYMARKET' 
+          AND status IN ('ENTREGUE', 'CANCELADO', 'CONCLUDED', 'CANCELED')
+        )`;
       const params = [];
 
       if (marketplace) {
@@ -247,12 +302,22 @@ const DashboardController = {
           SELECT origem, status, COUNT(DISTINCT pedido_id) AS total
           FROM tracking_events
           WHERE origem IN ('ANYMARKET','JET','ONCLICK')
+            AND pedido_id NOT IN (
+              SELECT pedido_id FROM tracking_events 
+              WHERE origem = 'ANYMARKET' 
+              AND status IN ('ENTREGUE', 'CANCELADO', 'CONCLUDED', 'CANCELED')
+            )
           GROUP BY origem, status ORDER BY origem, total DESC
         `),
         pool.query(`
           SELECT pm.marketplace_origem as marketplace, COUNT(DISTINCT pm.numero_marketplace) as total
           FROM pedidos_mapeamento pm
           WHERE pm.marketplace_origem IS NOT NULL
+            AND pm.numero_marketplace NOT IN (
+              SELECT pedido_id FROM tracking_events 
+              WHERE origem = 'ANYMARKET' 
+              AND status IN ('ENTREGUE', 'CANCELADO', 'CONCLUDED', 'CANCELED')
+            )
           GROUP BY pm.marketplace_origem ORDER BY total DESC
         `),
         pool.query(`
@@ -262,6 +327,11 @@ const DashboardController = {
           FROM tracking_events
           WHERE origem = 'ANYMARKET'
             AND timestamp >= NOW() - INTERVAL '24 hours'
+            AND pedido_id NOT IN (
+              SELECT pedido_id FROM tracking_events 
+              WHERE origem = 'ANYMARKET' 
+              AND status IN ('ENTREGUE', 'CANCELADO', 'CONCLUDED', 'CANCELED')
+            )
           GROUP BY hora ORDER BY hora ASC
         `)
       ]);
