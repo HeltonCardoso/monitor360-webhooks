@@ -130,7 +130,7 @@
 <div class="topbar">
   <div class="brand">MONITOR360</div>
   <div class="topbar-right">
-    <button class="btn-theme" id="btn-theme" title="Alternar tema" onclick="toggleTheme()">🌙</button>
+    <div id="theme-button-container"></div>
     <a href="/" class="topbar-back">← Dashboard</a>
   </div>
 </div>
@@ -369,6 +369,56 @@ function switchTab(id, el){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('panel-'+id).classList.add('active');
+}
+
+// ── CRIAÇÃO DO BOTÃO DE TEMA (SEM INLINE) ──
+function criarBotaoTema() {
+  const container = document.getElementById('theme-button-container');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  const btn = document.createElement('button');
+  btn.className = 'btn-theme';
+  btn.id = 'btn-theme';
+  btn.title = 'Alternar tema';
+  
+  const temaAtual = window.getTheme();
+  btn.textContent = temaAtual === 'dark' ? '🌙' : '☀️';
+  
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+    const next = window.getTheme() === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('m360-theme', next);
+    window.applyTheme(next);
+    btn.textContent = next === 'dark' ? '🌙' : '☀️';
+  });
+  
+  container.appendChild(btn);
+}
+
+window.getTheme = function() { 
+  return localStorage.getItem('m360-theme') || 'dark'; 
+};
+
+window.applyTheme = function(t) {
+  if (t === 'light') {
+    document.documentElement.classList.add('light');
+  } else {
+    document.documentElement.classList.remove('light');
+  }
+  const btn = document.getElementById('btn-theme');
+  if (btn) {
+    btn.textContent = t === 'dark' ? '🌙' : '☀️';
+  }
+};
+
+window.applyTheme(window.getTheme());
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', criarBotaoTema);
+} else {
+  criarBotaoTema();
 }
 
 function reset(){

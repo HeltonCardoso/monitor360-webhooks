@@ -382,12 +382,11 @@
     MONITOR360
   </div>
   <div class="topbar-right">
-    <span class="topbar-time" id="clock">--:--:--</span>
-    <button class="btn-theme" id="btn-theme" title="Alternar tema" onclick="toggleTheme()">🌙</button>
-    <button class="btn-refresh" onclick="refreshAll()">
-      <i class="fas fa-sync-alt"></i> Atualizar
-    </button>
-  </div>
+  <span class="topbar-time" id="clock">--:--:--</span>
+  <div id="theme-button-container"></div>
+  <button class="btn-refresh" onclick="refreshAll()">
+    <i class="fas fa-sync-alt"></i> Atualizar
+  </button>
 </div>
 
 <!-- TOAST -->
@@ -828,6 +827,71 @@ async function carregarGraficos() {
       }
     });
   } catch(e) { console.error(e); }
+}
+
+// ── CRIAÇÃO DO BOTÃO DE TEMA (SEM INLINE) ──
+function criarBotaoTema() {
+  const container = document.getElementById('theme-button-container');
+  if (!container) return;
+  
+  // Remove qualquer botão existente
+  container.innerHTML = '';
+  
+  const btn = document.createElement('button');
+  btn.className = 'btn-theme';
+  btn.id = 'btn-theme';
+  btn.title = 'Alternar tema';
+  
+  const temaAtual = window.getTheme();
+  btn.textContent = temaAtual === 'dark' ? '🌙' : '☀️';
+  
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+    const next = window.getTheme() === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('m360-theme', next);
+    window.applyTheme(next);
+    btn.textContent = next === 'dark' ? '🌙' : '☀️';
+    if (typeof window.carregarGraficos === 'function') {
+      window.carregarGraficos();
+    }
+  });
+  
+  container.appendChild(btn);
+}
+
+// Garantir que as funções de tema existem
+window.getTheme = function() { 
+  return localStorage.getItem('m360-theme') || 'dark'; 
+};
+
+window.applyTheme = function(t) {
+  if (t === 'light') {
+    document.documentElement.classList.add('light');
+  } else {
+    document.documentElement.classList.remove('light');
+  }
+  // Atualizar texto do botão se ele já existir
+  const btn = document.getElementById('btn-theme');
+  if (btn) {
+    btn.textContent = t === 'dark' ? '🌙' : '☀️';
+  }
+};
+
+window.toggleTheme = function() {
+  const next = window.getTheme() === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('m360-theme', next);
+  window.applyTheme(next);
+  if (typeof window.carregarGraficos === 'function') window.carregarGraficos();
+};
+
+// Aplica tema salvo
+window.applyTheme(window.getTheme());
+
+// Criar o botão quando o DOM estiver pronto
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', criarBotaoTema);
+} else {
+  criarBotaoTema();
 }
 
 // ── REFRESH ──
