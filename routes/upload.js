@@ -14,7 +14,9 @@ const upload = multer({
 // Remove sufixo de pacote: LU-123-1 → LU-123, 456-01 → 456
 function normalizeOrderId(id) {
   if (!id) return id;
-  return id.toString().trim().replace(/-\d+$/, '');
+  const s = id.toString().trim();
+  const hifens = (s.match(/-/g) || []).length;
+  return hifens >= 2 ? s.replace(/-\d+$/, '') : s;
 }
 
 // Limpa valor monetário: "R$ 1.234,56" → 1234.56
@@ -405,7 +407,6 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
     const fileExt = req.file.originalname.toLowerCase().split('.').pop();
     const bufferStr = req.file.buffer.slice(0, 500).toString('latin1');
     const isSemicolonCsv = fileExt === 'csv' && bufferStr.includes(';');
-    const isCommaCsv     = fileExt === 'csv' && !bufferStr.includes(';');
     const isTsvOrTxt = fileExt === 'txt' || fileExt === 'tsv';
 
     let rawData = [];
@@ -432,30 +433,8 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
         headers.forEach((h, i) => { obj[h] = values[i] || ''; });
         return obj;
       }).filter(row => Object.values(row).some(v => v));
-    } else if (isCommaCsv) {
-      // Magazine Luiza (e outros CSV vírgula): lê UTF-8 para preservar acentos
-      const parseCSVLine = (line) => {
-        const result = [];
-        let cur = '', inQuote = false;
-        for (const ch of line) {
-          if (ch === '"') { inQuote = !inQuote; }
-          else if (ch === ',' && !inQuote) { result.push(cur.trim()); cur = ''; }
-          else cur += ch;
-        }
-        result.push(cur.trim());
-        return result;
-      };
-      const text = req.file.buffer.toString('utf8');
-      const lines = text.split('\n').filter(l => l.trim());
-      const headers = parseCSVLine(lines[0]);
-      rawData = lines.slice(1).map(line => {
-        const values = parseCSVLine(line);
-        const obj = {};
-        headers.forEach((h, i) => { obj[h] = values[i] || ''; });
-        return obj;
-      }).filter(row => Object.values(row).some(v => v));
     } else {
-      // XLSX / XLS
+      // XLSX / XLS / CSV normal
       const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
@@ -507,9 +486,12 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
     console.log('📋 Pedidos válidos:', pedidosValidos.length);
     console.log('📋 Primeiros IDs:', pedidosValidos.slice(0, 3).map(p => p.pedido_id_original));
 
-    // Monta lista de IDs para buscar (original + normalizado)
     const possiveisIds = [...new Set(
-      pedidosValidos.flatMap(p => [p.pedido_id_original, p.pedido_id_normalizado].filter(Boolean))
+      pedidosValidos.flatMap(p => [
+        p.pedido_id_original,
+        p.pedido_id_normalizado,
+        ...[1,2,3,4,5,6,7,8,9].map(n => `${p.pedido_id_original}-${n}`)
+      ].filter(Boolean))
     )];
 
     const result = await pool.query(
@@ -519,8 +501,12 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
     const integradosSet = new Set(result.rows.map(r => r.pedido_id));
 
     const naoIntegrados = pedidosValidos.filter(p => {
-      const ids = [p.pedido_id_original, p.pedido_id_normalizado].filter(Boolean);
-      return ids.every(id => !integradosSet.has(id));
+      const variantes = [
+        p.pedido_id_original,
+        p.pedido_id_normalizado,
+        ...[1,2,3,4,5,6,7,8,9].map(n => `${p.pedido_id_original}-${n}`)
+      ].filter(Boolean);
+      return variantes.every(id => !integradosSet.has(id));
     });
 
     res.json({
