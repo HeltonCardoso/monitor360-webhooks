@@ -3,230 +3,421 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Upload Planilha - Monitor360</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <title>Comparar Planilha — Monitor360</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0a0e17;
-      --surface: #111827;
-      --border: #1e2d40;
-      --accent: #00d4ff;
-      --success: #00e676;
-      --danger: #ff1744;
-      --text: #e2e8f0;
+      --bg:#0a0e17;--surface:#111827;--surface2:#1a2332;--border:#1e2d40;
+      --accent:#00d4ff;--success:#00e676;--warning:#ffab00;--danger:#ff1744;
+      --text:#e2e8f0;--muted:#64748b;
+      --font:'JetBrains Mono',monospace;--display:'Syne',sans-serif;
     }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'JetBrains Mono', monospace;
-    }
-    .upload-area {
-      border: 2px dashed var(--border);
-      border-radius: 8px;
-      padding: 40px;
-      text-align: center;
-      transition: all .3s;
-      cursor: pointer;
-    }
-    .upload-area.drag-over {
-      border-color: var(--accent);
-      background: rgba(0,212,255,.05);
-    }
-    .result-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      margin-top: 20px;
-    }
-    .badge-success { background: var(--success); color: #000; }
-    .badge-danger { background: var(--danger); }
-    .badge-warning { background: #ffab00; color: #000; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;min-height:100vh}
+
+    /* TOPBAR */
+    .topbar{position:fixed;top:0;left:0;right:0;z-index:100;height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px}
+    .brand{font-family:var(--display);font-weight:800;font-size:17px;color:var(--accent);letter-spacing:2px}
+    .topbar-back{color:var(--muted);text-decoration:none;font-size:12px;display:flex;align-items:center;gap:6px}
+    .topbar-back:hover{color:var(--accent)}
+
+    .main{margin-top:52px;padding:32px;max-width:1300px;margin-left:auto;margin-right:auto}
+    .page-title{font-family:var(--display);font-size:22px;font-weight:800;margin-bottom:24px;display:flex;align-items:center;gap:12px}
+    .page-title span{color:var(--accent)}
+
+    /* UPLOAD AREA */
+    .upload-wrap{background:var(--surface);border:2px dashed var(--border);border-radius:8px;padding:48px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:24px}
+    .upload-wrap:hover,.upload-wrap.drag{border-color:var(--accent);background:rgba(0,212,255,.04)}
+    .upload-icon{font-size:48px;margin-bottom:16px;display:block}
+    .upload-title{font-family:var(--display);font-size:16px;font-weight:700;margin-bottom:8px}
+    .upload-sub{color:var(--muted);font-size:12px;margin-bottom:16px}
+    .badges-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+    .badge{display:inline-block;padding:3px 10px;border-radius:3px;font-size:11px;font-weight:600}
+    .b-magalu{background:rgba(0,123,255,.15);color:#64b5f6;border:1px solid rgba(0,123,255,.3)}
+    .b-wc{background:rgba(0,230,118,.15);color:#00e676;border:1px solid rgba(0,230,118,.3)}
+    .b-mm{background:rgba(139,90,43,.2);color:#a1887f;border:1px solid rgba(139,90,43,.3)}
+    .b-az{background:rgba(255,153,0,.15);color:#ffb74d;border:1px solid rgba(255,153,0,.3)}
+
+    /* LOADING */
+    .loading-wrap{display:none;text-align:center;padding:48px;color:var(--muted)}
+    .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;display:inline-block;margin-bottom:12px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* RESULTS */
+    #results{display:none}
+
+    /* METRICS ROW */
+    .metrics-row{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:16px}
+    .metric-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px 12px;position:relative;overflow:hidden}
+    .metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+    .mc-blue::before{background:var(--accent)}
+    .mc-green::before{background:var(--success)}
+    .mc-red::before{background:var(--danger)}
+    .mc-yellow::before{background:var(--warning)}
+    .mc-ok::before{background:var(--success)}
+    .mc-late::before{background:var(--warning)}
+    .mc-div::before{background:var(--danger)}
+    .mv{font-family:var(--display);font-size:28px;font-weight:800;line-height:1}
+    .mc-blue .mv{color:var(--accent)}
+    .mc-green .mv{color:var(--success)}
+    .mc-red .mv{color:var(--danger)}
+    .mc-yellow .mv{color:var(--warning)}
+    .mc-ok .mv{color:var(--success)}
+    .mc-late .mv{color:var(--warning)}
+    .mc-div .mv{color:var(--danger)}
+    .ml{font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:.5px}
+
+    /* TABS */
+    .tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px}
+    .tab{padding:10px 20px;cursor:pointer;color:var(--muted);font-size:12px;letter-spacing:.5px;border-bottom:2px solid transparent;transition:all .2s;display:flex;align-items:center;gap:8px}
+    .tab:hover{color:var(--text)}
+    .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+    .tab-count{background:var(--surface2);border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700}
+    .tab.active .tab-count{background:rgba(0,212,255,.15);color:var(--accent)}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
+
+    /* TABLE */
+    .tbl-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse}
+    th{padding:8px 12px;text-align:left;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+    th:hover{color:var(--text)}
+    td{padding:9px 12px;border-bottom:1px solid rgba(30,45,64,.4);font-size:12px;vertical-align:middle}
+    tr:hover td{background:rgba(0,212,255,.025)}
+    code{background:var(--surface2);padding:2px 7px;border-radius:3px;font-size:11px;color:var(--accent)}
+
+    /* STATUS BADGES */
+    .st{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:3px;font-size:11px;font-weight:600;white-space:nowrap}
+    .st-ok{background:rgba(0,230,118,.12);color:var(--success);border:1px solid rgba(0,230,118,.25)}
+    .st-late{background:rgba(255,171,0,.12);color:var(--warning);border:1px solid rgba(255,171,0,.25)}
+    .st-div{background:rgba(255,23,68,.12);color:#ff6b8a;border:1px solid rgba(255,23,68,.25)}
+    .st-mkt{background:rgba(100,116,139,.12);color:var(--muted);border:1px solid rgba(100,116,139,.2)}
+    .st-sis{background:rgba(0,212,255,.1);color:var(--accent);border:1px solid rgba(0,212,255,.2)}
+
+    /* STAGE PILL */
+    .stage{display:inline-block;padding:2px 8px;border-radius:3px;font-size:10px;letter-spacing:.5px;font-weight:700}
+    .stage-ANYMARKET{background:rgba(0,212,255,.1);color:var(--accent)}
+    .stage-JET{background:rgba(255,107,53,.1);color:#ff6b35}
+    .stage-ONCLICK{background:rgba(0,230,118,.1);color:var(--success)}
+    .stage-RETORNO_JET{background:rgba(255,214,0,.1);color:#ffd600}
+    .stage-RETORNO_ANYMARKET{background:rgba(180,0,255,.1);color:#ce93d8}
+
+    /* SEARCH */
+    .search-bar{display:flex;gap:10px;margin-bottom:14px;align-items:center}
+    .search-input{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:4px;font-family:var(--font);font-size:12px;width:280px;outline:none}
+    .search-input:focus{border-color:var(--accent)}
+    .filter-select{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:4px;font-family:var(--font);font-size:12px;outline:none}
+    .filter-select:focus{border-color:var(--accent)}
+    .search-count{color:var(--muted);font-size:11px;margin-left:auto}
+
+    /* PROGRESS BAR */
+    .prog-wrap{background:var(--surface2);border-radius:3px;height:6px;overflow:hidden;margin-top:6px}
+    .prog{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--success));transition:width .8s}
+
+    /* ERROR */
+    .error-card{background:rgba(255,23,68,.08);border:1px solid rgba(255,23,68,.2);border-radius:6px;padding:16px;color:#ff6b8a}
+    .debug-info{background:var(--surface2);border-radius:4px;padding:10px;font-size:11px;color:var(--muted);margin-top:8px}
+
+    /* NOVO UPLOAD BTN */
+    .btn-reset{background:var(--surface2);border:1px solid var(--border);color:var(--accent);padding:8px 18px;border-radius:4px;cursor:pointer;font-family:var(--font);font-size:12px;transition:all .2s}
+    .btn-reset:hover{background:var(--accent);color:var(--bg)}
+
+    @media(max-width:900px){.metrics-row{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:600px){.metrics-row{grid-template-columns:repeat(2,1fr)}.search-input{width:160px}}
   </style>
 </head>
 <body>
-  <div class="container mt-4">
-    <h1><i class="fas fa-file-upload"></i> Comparar Planilha de Vendas</h1>
-    <p class="text-muted">Envie uma planilha (Excel/CSV) com seus pedidos para verificar quais foram integrados</p>
-    
-    <!-- Área de upload -->
-    <div class="upload-area" id="uploadArea">
-      <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: var(--accent);"></i>
-      <h4 class="mt-3">Arraste ou clique para enviar</h4>
-      <p class="text-muted">Suporta .xlsx, .xls, .csv</p>
-      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display: none;">
+
+<div class="topbar">
+  <div class="brand">MONITOR360</div>
+  <a href="/" class="topbar-back">← Dashboard</a>
+</div>
+
+<div class="main">
+  <div class="page-title">📊 COMPARAR <span>PLANILHA</span></div>
+
+  <!-- UPLOAD -->
+  <div class="upload-wrap" id="uploadArea">
+    <span class="upload-icon">📁</span>
+    <div class="upload-title">Arraste o arquivo ou clique para selecionar</div>
+    <div class="upload-sub">Compare os pedidos da planilha com o que está no sistema</div>
+    <div class="badges-row">
+      <span class="badge b-magalu">Magazine Luiza .csv</span>
+      <span class="badge b-wc">WebContinental .xls/.xlsx</span>
+      <span class="badge b-mm">MadeiraMadeira .csv</span>
+      <span class="badge b-az">Amazon .txt</span>
     </div>
-    
-    <!-- Loading -->
-    <div id="loading" style="display: none;" class="text-center mt-4">
-      <i class="fas fa-spinner fa-spin fa-2x"></i>
-      <p>Processando planilha...</p>
-    </div>
-    
-    <!-- Resultados -->
-    <div id="results" style="display: none;"></div>
+    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.txt" style="display:none">
   </div>
-  
-  <script>
-    const uploadArea = document.getElementById('uploadArea');
-    const fileInput = document.getElementById('fileInput');
-    const loading = document.getElementById('loading');
-    const results = document.getElementById('results');
-    
-    uploadArea.addEventListener('click', () => fileInput.click());
-    uploadArea.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      uploadArea.classList.add('drag-over');
-    });
-    uploadArea.addEventListener('dragleave', () => {
-      uploadArea.classList.remove('drag-over');
-    });
-    uploadArea.addEventListener('drop', (e) => {
-      e.preventDefault();
-      uploadArea.classList.remove('drag-over');
-      const file = e.dataTransfer.files[0];
-      if (file) uploadFile(file);
-    });
-    
-    fileInput.addEventListener('change', (e) => {
-      if (e.target.files[0]) uploadFile(e.target.files[0]);
-    });
-    
-    async function uploadFile(file) {
-      const formData = new FormData();
-      formData.append('planilha', file);
-      
-      loading.style.display = 'block';
-      results.style.display = 'none';
-      
-      try {
-        const response = await fetch('/upload/compare', {
-          method: 'POST',
-          body: formData
-        });
-        const data = await response.json();
-        displayResults(data);
-      } catch (error) {
-        alert('Erro ao processar: ' + error.message);
-      } finally {
-        loading.style.display = 'none';
-      }
-    }
-    
-    function displayResults(data) {
-      if (data.error) {
-        results.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
-        results.style.display = 'block';
-        return;
-      }
-      
-      const total = data.total_planilha;
-      const integrados = data.total_integrados;
-      const naoIntegrados = data.nao_integrados.length;
-      const taxa = ((integrados / total) * 100).toFixed(1);
-      
-      results.innerHTML = `
-        <div class="result-card p-4">
-          <h3>📊 Resultado da Comparação</h3>
-          
-          <div class="row mt-4">
-            <div class="col-md-3">
-              <div class="card bg-dark text-white">
-                <div class="card-body">
-                  <h5>Total Pedidos</h5>
-                  <h2>${total}</h2>
-                </div>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="card bg-success text-white">
-                <div class="card-body">
-                  <h5>Integrados</h5>
-                  <h2>${integrados}</h2>
-                </div>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="card bg-danger text-white">
-                <div class="card-body">
-                  <h5>Não Integrados</h5>
-                  <h2>${naoIntegrados}</h2>
-                </div>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="card bg-info text-dark">
-                <div class="card-body">
-                  <h5>Taxa de Integração</h5>
-                  <h2>${taxa}%</h2>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          ${naoIntegrados > 0 ? `
-            <h5 class="mt-4 text-danger">⚠️ Pedidos NÃO Integrados (${naoIntegrados})</h5>
-            <div class="table-responsive">
-              <table class="table table-dark table-sm">
-                <thead>
-                  <tr>
-                    <th>ID Pedido</th>
-                    <th>Marketplace</th>
-                    <th>Status</th>
-                    <th>Valor</th>
-                    <th>Cliente</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${data.nao_integrados.slice(0, 20).map(p => `
-                    <tr>
-                      <td><code>${p.pedido_id}</code></td>
-                      <td><span class="badge bg-secondary">${p.marketplace}</span></td>
-                      <td>${p.status}</td>
-                      <td>R$ ${p.valor_total.toFixed(2)}</td>
-                      <td>${p.cliente.substring(0, 30)}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-              ${naoIntegrados > 20 ? `<p class="text-muted">... e mais ${naoIntegrados - 20} pedidos</p>` : ''}
-            </div>
-          ` : ''}
-          
-          ${data.parcialmente_integrados.length > 0 ? `
-            <h5 class="mt-4 text-warning">🔄 Pedidos com Fluxo Incompleto</h5>
-            <div class="table-responsive">
-              <table class="table table-dark table-sm">
-                <thead><tr><th>ID Pedido</th><th>Estágio Atual</th><th>Faltando</th></tr></thead>
-                <tbody>
-                  ${data.parcialmente_integrados.slice(0, 10).map(p => `
-                    <tr>
-                      <td><code>${p.pedido_id}</code></td>
-                      <td>${p.estagio_atual}</td>
-                      <td>${p.faltando.join(' → ')}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
-          ` : ''}
-          
-          <div class="mt-4">
-            <h5>📈 Estatísticas por Marketplace</h5>
-            ${Object.entries(data.estatisticas_por_marketplace).map(([mkt, stats]) => `
-              <div class="mb-2">
-                <strong>${mkt}</strong>: ${stats.integrados}/${stats.total} integrados 
-                (${((stats.integrados/stats.total)*100).toFixed(0)}%)
-                <div class="progress">
-                  <div class="progress-bar bg-success" style="width: ${(stats.integrados/stats.total)*100}%"></div>
-                </div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `;
-      results.style.display = 'block';
-    }
-  </script>
+
+  <div class="loading-wrap" id="loading">
+    <div class="spinner"></div><br>Processando e comparando com o banco...
+  </div>
+
+  <div id="results">
+    <!-- preenchido por JS -->
+  </div>
+</div>
+
+<script>
+const uploadArea = document.getElementById('uploadArea');
+const fileInput  = document.getElementById('fileInput');
+const loading    = document.getElementById('loading');
+const results    = document.getElementById('results');
+
+uploadArea.onclick = () => fileInput.click();
+uploadArea.ondragover  = e => { e.preventDefault(); uploadArea.classList.add('drag'); };
+uploadArea.ondragleave = () => uploadArea.classList.remove('drag');
+uploadArea.ondrop = e => { e.preventDefault(); uploadArea.classList.remove('drag'); if(e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]); };
+fileInput.onchange = e => { if(e.target.files[0]) upload(e.target.files[0]); };
+
+async function upload(file) {
+  const fd = new FormData();
+  fd.append('planilha', file);
+  uploadArea.style.display = 'none';
+  loading.style.display = 'block';
+  results.style.display = 'none';
+  results.innerHTML = '';
+  try {
+    const r = await fetch('/upload/compare', { method:'POST', body:fd });
+    const d = await r.json();
+    renderResults(d, file.name);
+  } catch(e) {
+    results.innerHTML = `<div class="error-card">❌ Erro: ${e.message}</div>`;
+  } finally {
+    loading.style.display = 'none';
+    results.style.display = 'block';
+  }
+}
+
+const MKT_BADGE = {
+  MAGAZINE_LUIZA: '<span class="badge b-magalu">Magazine Luiza</span>',
+  WEBCONTINENTAL: '<span class="badge b-wc">WebContinental</span>',
+  MADEIRAMADEIRA: '<span class="badge b-mm">MadeiraMadeira</span>',
+  AMAZON:         '<span class="badge b-az">Amazon</span>'
+};
+
+const COMP_LABEL = {
+  OK:        '<span class="st st-ok">✓ Sincronizado</span>',
+  ATRASADO:  '<span class="st st-late">⚠ Atrasado</span>',
+  DIVERGENTE:'<span class="st st-div">✕ Divergente</span>'
+};
+
+function fmt(val) { return 'R$ ' + (parseFloat(val)||0).toFixed(2).replace('.',','); }
+function fmtDate(d) { if(!d) return '-'; try { return new Date(d).toLocaleDateString('pt-BR'); } catch(e){ return d.toString().substring(0,10); } }
+function stMkt(s) { return `<span class="st st-mkt">${s||'?'}</span>`; }
+function stSis(s) { return `<span class="st st-sis">${s||'?'}</span>`; }
+function stageHtml(s) { return `<span class="stage stage-${s||''}">${s||'?'}</span>`; }
+
+let allIntegrados = [];
+let allNaoIntegrados = [];
+
+function renderResults(data, fileName) {
+  if (data.error) {
+    results.innerHTML = `<div class="error-card">⚠️ ${data.error}${data.debug?`<div class="debug-info">${JSON.stringify(data.debug,null,2)}</div>`:''}</div>
+    <button class="btn-reset" onclick="resetUpload()" style="margin-top:12px">← Enviar outro arquivo</button>`;
+    return;
+  }
+
+  allIntegrados    = data.integrados    || [];
+  allNaoIntegrados = data.nao_integrados || [];
+
+  const total   = data.total_planilha;
+  const integ   = data.total_integrados;
+  const nInteg  = data.total_nao_integrados;
+  const taxa    = total > 0 ? ((integ/total)*100).toFixed(1) : 0;
+  const rs      = data.resumo_status || {};
+  const sync    = rs.sincronizados || 0;
+  const atras   = rs.atrasados || 0;
+  const div     = rs.divergentes || 0;
+
+  let html = `
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:12px">
+      ${MKT_BADGE[data.tipo_planilha]||data.tipo_planilha}
+      <span style="color:var(--muted);font-size:12px">${fileName}</span>
+    </div>
+    <button class="btn-reset" onclick="resetUpload()">← Enviar outro arquivo</button>
+  </div>
+
+  <div class="metrics-row">
+    <div class="metric-card mc-blue"><div class="mv">${total}</div><div class="ml">TOTAL PLANILHA</div></div>
+    <div class="metric-card mc-green"><div class="mv">${integ}</div><div class="ml">INTEGRADOS</div></div>
+    <div class="metric-card mc-red"><div class="mv">${nInteg}</div><div class="ml">NÃO INTEGRADOS</div></div>
+    <div class="metric-card mc-blue"><div class="mv">${taxa}%</div><div class="ml">TAXA</div>
+      <div class="prog-wrap"><div class="prog" style="width:${taxa}%"></div></div>
+    </div>
+    <div class="metric-card mc-ok"><div class="mv">${sync}</div><div class="ml">SINCRONIZADOS</div></div>
+    <div class="metric-card mc-late"><div class="mv">${atras}</div><div class="ml">ATRASADOS</div></div>
+    <div class="metric-card mc-div"><div class="mv">${div}</div><div class="ml">DIVERGENTES</div></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('integrados',this)">
+      ✅ Integrados <span class="tab-count">${integ}</span>
+    </div>
+    <div class="tab" onclick="switchTab('nao-integrados',this)">
+      ❌ Não Integrados <span class="tab-count">${nInteg}</span>
+    </div>
+    <div class="tab" onclick="switchTab('divergentes',this)">
+      ⚠️ Divergentes/Atrasados <span class="tab-count">${atras+div}</span>
+    </div>
+  </div>
+
+  <!-- TAB INTEGRADOS -->
+  <div class="tab-panel active" id="panel-integrados">
+    <div class="search-bar">
+      <input class="search-input" id="srch-integ" placeholder="Buscar por ID ou cliente..." oninput="filterTable('integ')">
+      <select class="filter-select" id="flt-integ-comp" onchange="filterTable('integ')">
+        <option value="">Todos os status</option>
+        <option value="OK">Sincronizados</option>
+        <option value="ATRASADO">Atrasados</option>
+        <option value="DIVERGENTE">Divergentes</option>
+      </select>
+      <span class="search-count" id="cnt-integ">${integ} pedidos</span>
+    </div>
+    <div class="tbl-wrap">
+      <table id="tbl-integ">
+        <thead>
+          <tr>
+            <th>ID PEDIDO</th>
+            <th>CLIENTE</th>
+            <th>VALOR</th>
+            <th>DATA</th>
+            <th>STATUS MARKETPLACE</th>
+            <th>STATUS SISTEMA</th>
+            <th>ESTÁGIO SISTEMA</th>
+            <th>COMPARAÇÃO</th>
+          </tr>
+        </thead>
+        <tbody id="body-integ"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB NÃO INTEGRADOS -->
+  <div class="tab-panel" id="panel-nao-integrados">
+    <div class="search-bar">
+      <input class="search-input" id="srch-nao" placeholder="Buscar por ID ou cliente..." oninput="filterTable('nao')">
+      <span class="search-count" id="cnt-nao">${nInteg} pedidos</span>
+    </div>
+    <div class="tbl-wrap">
+      <table id="tbl-nao">
+        <thead>
+          <tr>
+            <th>ID PLANILHA</th>
+            <th>ID NORMALIZADO</th>
+            <th>CLIENTE</th>
+            <th>VALOR</th>
+            <th>STATUS MARKETPLACE</th>
+            <th>DATA</th>
+          </tr>
+        </thead>
+        <tbody id="body-nao"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB DIVERGENTES -->
+  <div class="tab-panel" id="panel-divergentes">
+    <div class="search-bar">
+      <input class="search-input" id="srch-div" placeholder="Buscar por ID ou cliente..." oninput="filterTable('div')">
+      <span class="search-count" id="cnt-div">${atras+div} pedidos</span>
+    </div>
+    <div class="tbl-wrap">
+      <table id="tbl-div">
+        <thead>
+          <tr>
+            <th>ID PEDIDO</th>
+            <th>CLIENTE</th>
+            <th>VALOR</th>
+            <th>STATUS MARKETPLACE</th>
+            <th>STATUS SISTEMA</th>
+            <th>ESTÁGIO SISTEMA</th>
+            <th>SITUAÇÃO</th>
+          </tr>
+        </thead>
+        <tbody id="body-div"></tbody>
+      </table>
+    </div>
+  </div>`;
+
+  results.innerHTML = html;
+
+  renderTables();
+}
+
+function renderTables() {
+  // Integrados
+  const bodyInteg = document.getElementById('body-integ');
+  const srchInteg = document.getElementById('srch-integ')?.value.toLowerCase() || '';
+  const fltComp   = document.getElementById('flt-integ-comp')?.value || '';
+  const filtInteg = allIntegrados.filter(p =>
+    (!srchInteg || p.pedido_id_original?.toLowerCase().includes(srchInteg) || p.cliente?.toLowerCase().includes(srchInteg)) &&
+    (!fltComp   || p.comparacao === fltComp)
+  );
+  document.getElementById('cnt-integ').textContent = `${filtInteg.length} pedidos`;
+  bodyInteg.innerHTML = filtInteg.slice(0,200).map(p => `<tr>
+    <td><code>${p.pedido_id_original||'-'}</code></td>
+    <td>${(p.cliente||'-').substring(0,35)}</td>
+    <td>${fmt(p.valor_total)}</td>
+    <td style="color:var(--muted)">${fmtDate(p.data)}</td>
+    <td>${stMkt(p.status_marketplace)}</td>
+    <td>${stSis(p.status_sistema)}</td>
+    <td>${stageHtml(p.estagio_sistema)}</td>
+    <td>${COMP_LABEL[p.comparacao]||p.comparacao}</td>
+  </tr>`).join('') + (filtInteg.length>200?`<tr><td colspan="8" style="color:var(--muted);text-align:center">... e mais ${filtInteg.length-200} pedidos</td></tr>`:'');
+
+  // Não integrados
+  const bodyNao  = document.getElementById('body-nao');
+  const srchNao  = document.getElementById('srch-nao')?.value.toLowerCase() || '';
+  const filtNao  = allNaoIntegrados.filter(p =>
+    !srchNao || p.pedido_id_original?.toLowerCase().includes(srchNao) || p.cliente?.toLowerCase().includes(srchNao)
+  );
+  document.getElementById('cnt-nao').textContent = `${filtNao.length} pedidos`;
+  bodyNao.innerHTML = filtNao.slice(0,200).map(p => `<tr>
+    <td><code>${p.pedido_id_original||'-'}</code></td>
+    <td><code style="color:var(--muted)">${p.pedido_id_normalizado||'-'}</code></td>
+    <td>${(p.cliente||'-').substring(0,35)}</td>
+    <td>${fmt(p.valor_total)}</td>
+    <td>${stMkt(p.status||'-')}</td>
+    <td style="color:var(--muted)">${fmtDate(p.data)}</td>
+  </tr>`).join('') + (filtNao.length>200?`<tr><td colspan="6" style="color:var(--muted);text-align:center">... e mais ${filtNao.length-200} pedidos</td></tr>`:'');
+
+  // Divergentes
+  const bodyDiv  = document.getElementById('body-div');
+  const srchDiv  = document.getElementById('srch-div')?.value.toLowerCase() || '';
+  const divList  = allIntegrados.filter(p => p.comparacao !== 'OK');
+  const filtDiv  = divList.filter(p =>
+    !srchDiv || p.pedido_id_original?.toLowerCase().includes(srchDiv) || p.cliente?.toLowerCase().includes(srchDiv)
+  );
+  document.getElementById('cnt-div').textContent = `${filtDiv.length} pedidos`;
+  bodyDiv.innerHTML = filtDiv.slice(0,200).map(p => `<tr>
+    <td><code>${p.pedido_id_original||'-'}</code></td>
+    <td>${(p.cliente||'-').substring(0,35)}</td>
+    <td>${fmt(p.valor_total)}</td>
+    <td>${stMkt(p.status_marketplace)}</td>
+    <td>${stSis(p.status_sistema)}</td>
+    <td>${stageHtml(p.estagio_sistema)}</td>
+    <td>${COMP_LABEL[p.comparacao]||p.comparacao}</td>
+  </tr>`).join('') + (filtDiv.length>200?`<tr><td colspan="7" style="color:var(--muted);text-align:center">... e mais ${filtDiv.length-200} pedidos</td></tr>`:'');
+}
+
+function filterTable(which) { renderTables(); }
+
+function switchTab(id, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-' + id).classList.add('active');
+}
+
+function resetUpload() {
+  results.style.display = 'none';
+  results.innerHTML = '';
+  uploadArea.style.display = '';
+  fileInput.value = '';
+}
+</script>
 </body>
 </html>
