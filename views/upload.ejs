@@ -60,20 +60,34 @@ function detectarMarketplace(keys) {
 //          Status pacote..., Qtd itens, Valor total dos Produtos,
 //          Descontos, Frete, Valor total do Pacote, ..., Nome do cliente, ...
 function extractMagalu(row) {
-  const get = (key) => {
-    const found = Object.keys(row).find(k =>
-      k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() ===
-      key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
-    );
-    return found ? row[found]?.toString().trim() : null;
+  const rowKeys   = Object.keys(row);
+  const rowValues = Object.values(row);
+
+  // Sanitiza para comparação: remove acentos Unicode E caracteres não-ASCII
+  // (cobre tanto UTF-8 correto quanto latin1 corrompido como NÃºmero)
+  const sanitize = (s) => s.toString().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\x00-\x7f]/g, '')
+    .replace(/\s+/g, ' ').trim();
+
+  const get = (...keys) => {
+    for (const key of keys) {
+      const found = rowKeys.find(k => sanitize(k) === sanitize(key));
+      if (found !== undefined && row[found] !== undefined && row[found] !== '')
+        return row[found]?.toString().trim();
+    }
+    return null;
   };
 
-  const numeroPedido = get('Número do pedido') || get('Numero do pedido');
-  const numeroPacote = get('Número do pacote') || get('Numero do pacote');
-  const status       = get('Status pacote no momento que o relatório foi solicitado') || 'DESCONHECIDO';
-  const valorStr     = get('Valor total do Pacote') || get('Valor total dos Produtos do pacote');
+  // Fallback por índice: Magalu col[0]=Data, col[1]=Nº pedido, col[2]=Nº pacote, col[3]=Status
+  const byIndex = (i) => (rowValues[i] !== undefined && rowValues[i] !== '') ? rowValues[i].toString().trim() : null;
+
+  const numeroPedido = get('Numero do pedido', 'Number do pedido') || byIndex(1);
+  const numeroPacote = get('Numero do pacote', 'Number do pacote') || byIndex(2);
+  const status       = get('Status pacote no momento que o relatorio foi solicitado') || byIndex(3) || 'DESCONHECIDO';
+  const valorStr     = get('Valor total do Pacote', 'Valor total dos Produtos do pacote') || byIndex(8);
   const cliente      = get('Nome do cliente') || 'N/A';
-  const dataStr      = get('Data do Pacote');
+  const dataStr      = get('Data do Pacote') || byIndex(0);
 
   // Usa número do pedido como ID base (sem sufixo de pacote)
   const pedidoId = numeroPedido || numeroPacote;
