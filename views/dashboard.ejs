@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
   <style>
+    /* ── TEMA ESCURO (padrão) ── */
     :root {
       --bg: #0a0e17;
       --surface: #111827;
@@ -25,6 +26,21 @@
       --font-display: 'Syne', sans-serif;
     }
 
+    /* ── TEMA CLARO ── */
+    html.light {
+      --bg: #f0f4f8;
+      --surface: #ffffff;
+      --surface2: #e8eef5;
+      --border: #c8d6e5;
+      --accent: #0099bb;
+      --accent2: #e05520;
+      --success: #00a854;
+      --warning: #d48000;
+      --danger: #d01030;
+      --text: #1a2332;
+      --text-muted: #637282;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
@@ -33,6 +49,7 @@
       font-family: var(--font-mono);
       font-size: 13px;
       min-height: 100vh;
+      transition: background .25s, color .25s;
     }
 
     /* ── TOPBAR ── */
@@ -43,6 +60,7 @@
       border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 20px;
+      transition: background .25s, border-color .25s;
     }
     .topbar-brand {
       font-family: var(--font-display);
@@ -60,7 +78,7 @@
     }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-    .topbar-right { display: flex; align-items: center; gap: 16px; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
     .topbar-time { color: var(--text-muted); font-size: 12px; }
     .btn-refresh {
       background: var(--surface2); border: 1px solid var(--border);
@@ -70,6 +88,20 @@
     }
     .btn-refresh:hover { background: var(--accent); color: var(--bg); }
 
+    /* ── BOTÃO DE TEMA ── */
+    .btn-theme {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 34px; height: 34px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 15px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .2s;
+    }
+    .btn-theme:hover { border-color: var(--accent); color: var(--accent); }
+
     /* ── SIDEBAR ── */
     .sidebar {
       position: fixed; left: 0; top: 52px; bottom: 0;
@@ -78,6 +110,7 @@
       border-right: 1px solid var(--border);
       padding: 20px 0;
       display: flex; flex-direction: column;
+      transition: background .25s, border-color .25s;
     }
     .nav-item-s {
       display: flex; align-items: center; gap: 10px;
@@ -91,7 +124,7 @@
     .nav-item-s:hover, .nav-item-s.active {
       color: var(--accent);
       border-left-color: var(--accent);
-      background: rgba(0,212,255,.05);
+      background: rgba(0,180,220,.06);
     }
     .nav-item-s i { width: 18px; text-align: center; }
     .nav-divider { border-color: var(--border); margin: 12px 20px; }
@@ -125,6 +158,7 @@
       border: 1px solid var(--border);
       border-radius: 6px;
       overflow: hidden;
+      transition: background .25s, border-color .25s;
     }
     .card-header {
       padding: 10px 16px;
@@ -200,13 +234,13 @@
     }
     .stage-bubble.active {
       border-color: var(--accent);
-      background: rgba(0,212,255,.1);
+      background: rgba(0,180,220,.1);
       color: var(--accent);
-      box-shadow: 0 0 16px rgba(0,212,255,.2);
+      box-shadow: 0 0 16px rgba(0,180,220,.2);
     }
     .stage-bubble.warning {
       border-color: var(--warning);
-      background: rgba(255,171,0,.1);
+      background: rgba(200,130,0,.1);
       color: var(--warning);
     }
     .stage-name { font-size: 10px; color: var(--text-muted); letter-spacing: .5px; }
@@ -229,10 +263,10 @@
     }
     .tbl td {
       padding: 10px 12px;
-      border-bottom: 1px solid rgba(30,45,64,.5);
+      border-bottom: 1px solid var(--border);
       vertical-align: middle;
     }
-    .tbl tr:hover td { background: rgba(0,212,255,.03); }
+    .tbl tr:hover td { background: rgba(0,180,220,.04); }
     .tbl tr:last-child td { border-bottom: none; }
 
     /* ── BADGES ── */
@@ -251,9 +285,12 @@
       display: inline-block; padding: 2px 8px; border-radius: 3px;
       font-size: 10px; font-weight: 600;
     }
-    .badge-SHOPEE { background: rgba(238,77,45,.15); color: #ff7043; }
-    .badge-MERCADO_LIVRE { background: rgba(255,214,0,.15); color: #ffd600; }
-    .badge-MAGAZINE_LUIZA { background: rgba(0,123,255,.15); color: #64b5f6; }
+    .badge-SHOPEE { background: rgba(238,77,45,.15); color: #e05000; }
+    .badge-MERCADO_LIVRE { background: rgba(200,160,0,.15); color: #c09000; }
+    .badge-MAGAZINE_LUIZA { background: rgba(0,100,220,.15); color: #0070cc; }
+    html:not(.light) .badge-SHOPEE { color: #ff7043; }
+    html:not(.light) .badge-MERCADO_LIVRE { color: #ffd600; }
+    html:not(.light) .badge-MAGAZINE_LUIZA { color: #64b5f6; }
     .badge-default-mkt { background: rgba(100,116,139,.15); color: var(--text-muted); }
 
     .btn-resolver {
@@ -271,7 +308,7 @@
     .mkt-item {
       display: flex; align-items: center; justify-content: space-between;
       padding: 8px 0;
-      border-bottom: 1px solid rgba(30,45,64,.5);
+      border-bottom: 1px solid var(--border);
     }
     .mkt-item:last-child { border-bottom: none; }
     .mkt-bar-bg { flex: 1; margin: 0 12px; background: var(--surface2); border-radius: 2px; height: 4px; }
@@ -303,14 +340,12 @@
     /* ── TOOLTIPS EXPLICATIVOS ── */
     .help-tip {
       display: inline-block;
-      width: 16px;
-      height: 16px;
+      width: 16px; height: 16px;
       background: var(--surface2);
       border-radius: 50%;
       text-align: center;
       line-height: 16px;
-      font-size: 10px;
-      font-weight: bold;
+      font-size: 10px; font-weight: bold;
       color: var(--text-muted);
       cursor: help;
       margin-left: 6px;
@@ -319,15 +354,12 @@
     .help-tip:hover::after {
       content: attr(data-tip);
       position: absolute;
-      bottom: 100%;
-      left: 50%;
+      bottom: 100%; left: 50%;
       transform: translateX(-50%);
       background: var(--surface);
       border: 1px solid var(--border);
-      padding: 6px 10px;
-      border-radius: 4px;
-      font-size: 10px;
-      white-space: nowrap;
+      padding: 6px 10px; border-radius: 4px;
+      font-size: 10px; white-space: nowrap;
       z-index: 1000;
       color: var(--accent);
       font-family: var(--font-mono);
@@ -351,6 +383,7 @@
   </div>
   <div class="topbar-right">
     <span class="topbar-time" id="clock">--:--:--</span>
+    <button class="btn-theme" id="btn-theme" title="Alternar tema" onclick="toggleTheme()">🌙</button>
     <button class="btn-refresh" onclick="refreshAll()">
       <i class="fas fa-sync-alt"></i> Atualizar
     </button>
@@ -365,10 +398,7 @@
   <a href="/" class="nav-item-s active"><i class="fas fa-th-large"></i> Dashboard</a>
   <a href="/pedidos" class="nav-item-s"><i class="fas fa-boxes"></i> Pedidos</a>
   <a href="/anomalias" class="nav-item-s"><i class="fas fa-exclamation-triangle"></i> Anomalias</a>
-  
-  <!-- NOVO LINK PARA COMPARAÇÃO DE PLANILHA -->
   <a href="/upload" class="nav-item-s"><i class="fas fa-file-upload"></i> Comparar Planilha</a>
-  
   <hr class="nav-divider">
   <a href="#" class="nav-item-s" onclick="alert('Em desenvolvimento')"><i class="fas fa-cog"></i> Config</a>
 </div>
@@ -508,7 +538,7 @@
     </div>
   </div>
 
-  <!-- LEGENDA EXPLICATIVA - O QUE CADA MÉTRICA SIGNIFICA -->
+  <!-- LEGENDA EXPLICATIVA -->
   <div class="card mt-4" style="margin-top: 20px;">
     <div class="card-header">
       <i class="fas fa-info-circle"></i> ENTENDENDO O DASHBOARD
@@ -560,6 +590,33 @@
 let chartStatus = null;
 let chartVolume = null;
 
+// ── TEMA ──
+function getTheme() { return localStorage.getItem('m360-theme') || 'dark'; }
+
+function applyTheme(t) {
+  const btn = document.getElementById('btn-theme');
+  if (t === 'light') {
+    document.documentElement.classList.add('light');
+    btn.textContent = '☀️';
+    btn.title = 'Alternar para tema escuro';
+  } else {
+    document.documentElement.classList.remove('light');
+    btn.textContent = '🌙';
+    btn.title = 'Alternar para tema claro';
+  }
+}
+
+function toggleTheme() {
+  const next = getTheme() === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('m360-theme', next);
+  applyTheme(next);
+  // Regerar gráficos com as novas cores de grade
+  carregarGraficos();
+}
+
+// Aplica tema salvo ao carregar
+applyTheme(getTheme());
+
 // ── CLOCK ──
 function updateClock() {
   document.getElementById('clock').textContent = new Date().toLocaleTimeString('pt-BR');
@@ -574,6 +631,14 @@ function toast(msg, type = 'success') {
   el.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':'exclamation-circle'}" style="color:var(--${type==='success'?'success':'danger'})"></i> ${msg}`;
   document.getElementById('toasts').appendChild(el);
   setTimeout(() => el.remove(), 4000);
+}
+
+// ── CORES DOS CHARTS (adapta ao tema) ──
+function chartGridColor() {
+  return getTheme() === 'light' ? 'rgba(180,200,220,.4)' : 'rgba(30,45,64,.5)';
+}
+function chartTickColor() {
+  return getTheme() === 'light' ? '#637282' : '#64748b';
 }
 
 // ── MÉTRICAS ──
@@ -591,17 +656,13 @@ async function carregarMetricas() {
     document.getElementById('m-24h').textContent = `${pedidos24h ?? 0} nas últimas 24h`;
     document.getElementById('m-taxa').textContent = `taxa de sync: ${taxaSincronizacaoJet ?? 0}%`;
 
-    // taxa bar
     const taxa = taxaSincronizacaoJet ?? 0;
     document.getElementById('taxa-pct').textContent = taxa + '%';
     document.getElementById('taxa-bar').style.width = taxa + '%';
     document.getElementById('sync-jet').textContent = `JET: ${metricas.JET ?? 0}`;
     document.getElementById('sync-any').textContent = `AnyMarket: ${metricas.ANYMARKET ?? 0}`;
 
-    // pipeline
     renderPipeline(porEstagio);
-
-    // marketplace
     renderMarketplace(porMarketplace);
 
   } catch(e) { console.error(e); }
@@ -641,8 +702,8 @@ function renderMarketplace(list) {
   const max = Math.max(...list.map(m => parseInt(m.total)), 1);
   const mktColors = {
     SHOPEE: 'var(--accent2)',
-    MERCADO_LIVRE: '#ffd600',
-    MAGAZINE_LUIZA: '#64b5f6'
+    MERCADO_LIVRE: getTheme()==='light'?'#c09000':'#ffd600',
+    MAGAZINE_LUIZA: getTheme()==='light'?'#0070cc':'#64b5f6'
   };
   el.innerHTML = list.map(m => {
     const pct = (parseInt(m.total) / max * 100).toFixed(0);
@@ -704,7 +765,9 @@ async function carregarGraficos() {
     const d = await r.json();
     if (!d.success) return;
 
-    // Chart Status
+    const gc = chartGridColor();
+    const tc = chartTickColor();
+
     const statusData = d.porStatus || {};
     const allStatus = [...new Set([
       ...(statusData.ANYMARKET||[]).map(s=>s.status),
@@ -719,22 +782,21 @@ async function carregarGraficos() {
       data: {
         labels: allStatus,
         datasets: [
-          { label: 'AnyMarket', data: allStatus.map(s => (statusData.ANYMARKET||[]).find(x=>x.status===s)?.total||0), backgroundColor: 'rgba(0,212,255,.7)' },
-          { label: 'JET',       data: allStatus.map(s => (statusData.JET||[]).find(x=>x.status===s)?.total||0),       backgroundColor: 'rgba(255,107,53,.7)' },
-          { label: 'Onclick',   data: allStatus.map(s => (statusData.ONCLICK||[]).find(x=>x.status===s)?.total||0),   backgroundColor: 'rgba(0,230,118,.7)' }
+          { label: 'AnyMarket', data: allStatus.map(s => (statusData.ANYMARKET||[]).find(x=>x.status===s)?.total||0), backgroundColor: 'rgba(0,180,220,.7)' },
+          { label: 'JET',       data: allStatus.map(s => (statusData.JET||[]).find(x=>x.status===s)?.total||0),       backgroundColor: 'rgba(224,85,32,.7)' },
+          { label: 'Onclick',   data: allStatus.map(s => (statusData.ONCLICK||[]).find(x=>x.status===s)?.total||0),   backgroundColor: 'rgba(0,168,84,.7)' }
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: '#64748b', font: { family: 'JetBrains Mono', size: 11 } } } },
+        plugins: { legend: { labels: { color: tc, font: { family: 'JetBrains Mono', size: 11 } } } },
         scales: {
-          x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(30,45,64,.5)' } },
-          y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(30,45,64,.5)' } }
+          x: { ticks: { color: tc, font: { size: 10 } }, grid: { color: gc } },
+          y: { ticks: { color: tc, font: { size: 10 } }, grid: { color: gc } }
         }
       }
     });
 
-    // Chart Volume
     const vol = d.volumeHoras || [];
     const ctxVol = document.getElementById('chartVolume').getContext('2d');
     if (chartVolume) chartVolume.destroy();
@@ -746,17 +808,17 @@ async function carregarGraficos() {
           label: 'Pedidos/hora',
           data: vol.map(v => parseInt(v.total)),
           borderColor: 'var(--accent)',
-          backgroundColor: 'rgba(0,212,255,.1)',
+          backgroundColor: 'rgba(0,180,220,.1)',
           tension: .4, fill: true,
           pointBackgroundColor: 'var(--accent)', pointRadius: 3
         }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: '#64748b', font: { family: 'JetBrains Mono', size: 11 } } } },
+        plugins: { legend: { labels: { color: tc, font: { family: 'JetBrains Mono', size: 11 } } } },
         scales: {
-          x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(30,45,64,.5)' } },
-          y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(30,45,64,.5)' } }
+          x: { ticks: { color: tc, font: { size: 10 } }, grid: { color: gc } },
+          y: { ticks: { color: tc, font: { size: 10 } }, grid: { color: gc } }
         }
       }
     });

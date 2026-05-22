@@ -6,30 +6,54 @@
   <title>Comparar Planilha — Monitor360</title>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <style>
-    :root{--bg:#0a0e17;--surface:#111827;--surface2:#1a2332;--border:#1e2d40;--accent:#00d4ff;--success:#00e676;--warning:#ffab00;--danger:#ff1744;--text:#e2e8f0;--muted:#64748b}
+    /* ── TEMA ESCURO (padrão) ── */
+    :root {
+      --bg:#0a0e17; --surface:#111827; --surface2:#1a2332;
+      --border:#1e2d40; --accent:#00d4ff; --success:#00e676;
+      --warning:#ffab00; --danger:#ff1744; --text:#e2e8f0; --muted:#64748b;
+    }
+    /* ── TEMA CLARO ── */
+    html.light {
+      --bg:#f0f4f8; --surface:#ffffff; --surface2:#e8eef5;
+      --border:#c8d6e5; --accent:#0099bb; --success:#00a854;
+      --warning:#d48000; --danger:#d01030; --text:#1a2332; --muted:#637282;
+    }
+
     *{box-sizing:border-box;margin:0;padding:0}
-    body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px}
-    .topbar{position:fixed;top:0;left:0;right:0;z-index:100;height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px}
+    body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;transition:background .25s,color .25s}
+
+    .topbar{position:fixed;top:0;left:0;right:0;z-index:100;height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;transition:background .25s,border-color .25s}
     .brand{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;color:var(--accent);letter-spacing:2px}
+    .topbar-right{display:flex;align-items:center;gap:10px}
     .topbar-back{color:var(--muted);text-decoration:none;font-size:12px}
     .topbar-back:hover{color:var(--accent)}
+
+    /* ── BOTÃO TEMA ── */
+    .btn-theme{background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:32px;height:32px;border-radius:4px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+    .btn-theme:hover{border-color:var(--accent);color:var(--accent)}
+
     .main{margin-top:52px;padding:28px;max-width:1300px;margin-left:auto;margin-right:auto}
     .page-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:20px}
     .page-title span{color:var(--accent)}
 
     /* UPLOAD */
     .upload-wrap{background:var(--surface);border:2px dashed var(--border);border-radius:8px;padding:44px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:20px}
-    .upload-wrap:hover,.upload-wrap.drag{border-color:var(--accent);background:rgba(0,212,255,.04)}
+    .upload-wrap:hover,.upload-wrap.drag{border-color:var(--accent);background:rgba(0,180,220,.04)}
     .upload-icon{font-size:44px;margin-bottom:14px;display:block}
     .upload-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;margin-bottom:6px}
     .upload-sub{color:var(--muted);font-size:12px;margin-bottom:14px}
     .badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
     .badge{display:inline-block;padding:3px 10px;border-radius:3px;font-size:11px;font-weight:600}
-    .b-mg{background:rgba(0,123,255,.15);color:#64b5f6;border:1px solid rgba(0,123,255,.3)}
-    .b-wc{background:rgba(0,230,118,.15);color:#00e676;border:1px solid rgba(0,230,118,.3)}
-    .b-mm{background:rgba(139,90,43,.2);color:#a1887f;border:1px solid rgba(139,90,43,.3)}
-    .b-az{background:rgba(255,153,0,.15);color:#ffb74d;border:1px solid rgba(255,153,0,.3)}
-    .b-ml{background:rgba(255,214,0,.15);color:#ffd600;border:1px solid rgba(255,214,0,.3)}
+    .b-mg{background:rgba(0,123,255,.15);color:#0070cc;border:1px solid rgba(0,123,255,.3)}
+    html:not(.light) .b-mg{color:#64b5f6}
+    .b-wc{background:rgba(0,168,84,.15);color:#00a854;border:1px solid rgba(0,168,84,.3)}
+    html:not(.light) .b-wc{color:#00e676}
+    .b-mm{background:rgba(139,90,43,.2);color:#8d6e63;border:1px solid rgba(139,90,43,.3)}
+    html:not(.light) .b-mm{color:#a1887f}
+    .b-az{background:rgba(200,120,0,.15);color:#b36000;border:1px solid rgba(200,120,0,.3)}
+    html:not(.light) .b-az{color:#ffb74d}
+    .b-ml{background:rgba(180,140,0,.15);color:#8a6d00;border:1px solid rgba(180,140,0,.3)}
+    html:not(.light) .b-ml{color:#ffd600}
 
     /* LOADING */
     .loading-wrap{display:none;text-align:center;padding:44px;color:var(--muted)}
@@ -38,7 +62,7 @@
 
     /* METRICS */
     .metrics-row{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:16px}
-    .mc{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:13px 12px;position:relative;overflow:hidden}
+    .mc{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:13px 12px;position:relative;overflow:hidden;transition:background .25s,border-color .25s}
     .mc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
     .mc-blue::before{background:var(--accent)}.mc-green::before{background:var(--success)}
     .mc-red::before{background:var(--danger)}.mc-ok::before{background:var(--success)}
@@ -58,7 +82,7 @@
     .tab:hover{color:var(--text)}
     .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
     .tab-cnt{background:var(--surface2);border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700}
-    .tab.active .tab-cnt{background:rgba(0,212,255,.15);color:var(--accent)}
+    .tab.active .tab-cnt{background:rgba(0,180,220,.15);color:var(--accent)}
     .tab-panel{display:none}.tab-panel.active{display:block}
 
     /* SEARCH */
@@ -72,26 +96,26 @@
     .tbl-wrap{overflow-x:auto}
     table{width:100%;border-collapse:collapse}
     th{padding:7px 11px;text-align:left;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap}
-    td{padding:8px 11px;border-bottom:1px solid rgba(30,45,64,.4);font-size:12px;vertical-align:middle}
-    tr:hover td{background:rgba(0,212,255,.025)}
+    td{padding:8px 11px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle}
+    tr:hover td{background:rgba(0,180,220,.03)}
     code{background:var(--surface2);padding:2px 6px;border-radius:3px;font-size:11px;color:var(--accent)}
 
     /* STATUS PILLS */
     .st{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600;white-space:nowrap}
-    .st-ok{background:rgba(0,230,118,.1);color:var(--success);border:1px solid rgba(0,230,118,.2)}
-    .st-late{background:rgba(255,171,0,.1);color:var(--warning);border:1px solid rgba(255,171,0,.2)}
-    .st-div{background:rgba(255,23,68,.1);color:#ff6b8a;border:1px solid rgba(255,23,68,.2)}
+    .st-ok{background:rgba(0,168,84,.1);color:var(--success);border:1px solid rgba(0,168,84,.2)}
+    .st-late{background:rgba(200,128,0,.1);color:var(--warning);border:1px solid rgba(200,128,0,.2)}
+    .st-div{background:rgba(208,16,48,.1);color:var(--danger);border:1px solid rgba(208,16,48,.2)}
     .st-mkt{background:rgba(100,116,139,.1);color:var(--muted);border:1px solid rgba(100,116,139,.15)}
-    .st-sis{background:rgba(0,212,255,.08);color:var(--accent);border:1px solid rgba(0,212,255,.15)}
+    .st-sis{background:rgba(0,180,220,.08);color:var(--accent);border:1px solid rgba(0,180,220,.15)}
     .stage{display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:.5px}
-    .stage-ANYMARKET{background:rgba(0,212,255,.1);color:var(--accent)}
-    .stage-JET{background:rgba(255,107,53,.1);color:#ff6b35}
-    .stage-ONCLICK{background:rgba(0,230,118,.1);color:var(--success)}
-    .stage-RETORNO_JET{background:rgba(255,214,0,.1);color:#ffd600}
-    .stage-RETORNO_ANYMARKET{background:rgba(180,0,255,.1);color:#ce93d8}
+    .stage-ANYMARKET{background:rgba(0,180,220,.1);color:var(--accent)}
+    .stage-JET{background:rgba(224,85,32,.1);color:var(--accent2,#e05520)}
+    .stage-ONCLICK{background:rgba(0,168,84,.1);color:var(--success)}
+    .stage-RETORNO_JET{background:rgba(180,140,0,.1);color:var(--warning)}
+    .stage-RETORNO_ANYMARKET{background:rgba(150,50,200,.1);color:#a855d0}
 
     /* MISC */
-    .error-card{background:rgba(255,23,68,.07);border:1px solid rgba(255,23,68,.2);border-radius:6px;padding:14px;color:#ff6b8a}
+    .error-card{background:rgba(208,16,48,.07);border:1px solid rgba(208,16,48,.2);border-radius:6px;padding:14px;color:var(--danger)}
     .debug-box{background:var(--surface2);border-radius:4px;padding:10px;font-size:11px;color:var(--muted);margin-top:8px;white-space:pre-wrap}
     .btn{background:var(--surface2);border:1px solid var(--border);color:var(--accent);padding:7px 16px;border-radius:4px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;transition:all .2s}
     .btn:hover{background:var(--accent);color:var(--bg)}
@@ -105,7 +129,10 @@
 
 <div class="topbar">
   <div class="brand">MONITOR360</div>
-  <a href="/" class="topbar-back">← Dashboard</a>
+  <div class="topbar-right">
+    <button class="btn-theme" id="btn-theme" title="Alternar tema" onclick="toggleTheme()">🌙</button>
+    <a href="/" class="topbar-back">← Dashboard</a>
+  </div>
 </div>
 
 <div class="main">
@@ -133,6 +160,31 @@
 </div>
 
 <script>
+// ── TEMA ──
+function getTheme() { return localStorage.getItem('m360-theme') || 'dark'; }
+
+function applyTheme(t) {
+  const btn = document.getElementById('btn-theme');
+  if (t === 'light') {
+    document.documentElement.classList.add('light');
+    btn.textContent = '☀️';
+    btn.title = 'Alternar para tema escuro';
+  } else {
+    document.documentElement.classList.remove('light');
+    btn.textContent = '🌙';
+    btn.title = 'Alternar para tema claro';
+  }
+}
+
+function toggleTheme() {
+  const next = getTheme() === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('m360-theme', next);
+  applyTheme(next);
+}
+
+applyTheme(getTheme());
+
+// ── UPLOAD ──
 const uploadArea = document.getElementById('uploadArea');
 const fileInput  = document.getElementById('fileInput');
 const loading    = document.getElementById('loading');
@@ -163,8 +215,18 @@ async function doUpload(file) {
   }
 }
 
-const MKT = { MAGAZINE_LUIZA:'<span class="badge b-mg">Magazine Luiza</span>', WEBCONTINENTAL:'<span class="badge b-wc">WebContinental</span>', MADEIRAMADEIRA:'<span class="badge b-mm">MadeiraMadeira</span>', AMAZON:'<span class="badge b-az">Amazon</span>', MERCADO_LIVRE:'<span class="badge b-ml">Mercado Livre</span>' };
-const CMP = { OK:'<span class="st st-ok">✓ Sincronizado</span>', ATRASADO:'<span class="st st-late">⚠ Atrasado</span>', DIVERGENTE:'<span class="st st-div">✕ Divergente</span>' };
+const MKT = {
+  MAGAZINE_LUIZA:'<span class="badge b-mg">Magazine Luiza</span>',
+  WEBCONTINENTAL:'<span class="badge b-wc">WebContinental</span>',
+  MADEIRAMADEIRA:'<span class="badge b-mm">MadeiraMadeira</span>',
+  AMAZON:'<span class="badge b-az">Amazon</span>',
+  MERCADO_LIVRE:'<span class="badge b-ml">Mercado Livre</span>'
+};
+const CMP = {
+  OK:'<span class="st st-ok">✓ Sincronizado</span>',
+  ATRASADO:'<span class="st st-late">⚠ Atrasado</span>',
+  DIVERGENTE:'<span class="st st-div">✕ Divergente</span>'
+};
 
 function fmt(v){ return 'R$ '+(parseFloat(v)||0).toFixed(2).replace('.',','); }
 function fmtD(d){ if(!d) return '-'; try{ return new Date(d).toLocaleDateString('pt-BR'); }catch(e){ return d.toString().substring(0,10); } }
