@@ -97,7 +97,9 @@
       border-radius: 4px;
       cursor: pointer;
       font-size: 15px;
-      display: flex; align-items: center; justify-content: center;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       transition: all .2s;
     }
     .btn-theme:hover { border-color: var(--accent); color: var(--accent); }
@@ -382,11 +384,12 @@
     MONITOR360
   </div>
   <div class="topbar-right">
-  <span class="topbar-time" id="clock">--:--:--</span>
-  <div id="theme-button-container"></div>
-  <button class="btn-refresh" onclick="refreshAll()">
-    <i class="fas fa-sync-alt"></i> Atualizar
-  </button>
+    <span class="topbar-time" id="clock">--:--:--</span>
+    <button class="btn-theme" id="btn-theme" title="Alternar tema">🌙</button>
+    <button class="btn-refresh" onclick="refreshAll()">
+      <i class="fas fa-sync-alt"></i> Atualizar
+    </button>
+  </div>
 </div>
 
 <!-- TOAST -->
@@ -589,25 +592,22 @@
 let chartStatus = null;
 let chartVolume = null;
 
-// ── TEMA (CORRIGIDO) ──
+// ── TEMA (VERSÃO ÚNICA E CORRIGIDA) ──
 window.getTheme = function() { 
   return localStorage.getItem('m360-theme') || 'dark'; 
 };
 
 window.applyTheme = function(t) {
-  const btn = document.getElementById('btn-theme');
   if (t === 'light') {
     document.documentElement.classList.add('light');
-    if (btn) {
-      btn.textContent = '☀️';
-      btn.title = 'Alternar para tema escuro';
-    }
   } else {
     document.documentElement.classList.remove('light');
-    if (btn) {
-      btn.textContent = '🌙';
-      btn.title = 'Alternar para tema claro';
-    }
+  }
+  // Atualizar texto do botão se ele já existir
+  const btn = document.getElementById('btn-theme');
+  if (btn) {
+    btn.textContent = t === 'dark' ? '🌙' : '☀️';
+    btn.title = t === 'dark' ? 'Alternar para tema claro' : 'Alternar para tema escuro';
   }
 };
 
@@ -615,11 +615,21 @@ window.toggleTheme = function() {
   const next = window.getTheme() === 'dark' ? 'light' : 'dark';
   localStorage.setItem('m360-theme', next);
   window.applyTheme(next);
-  if (typeof carregarGraficos === 'function') carregarGraficos();
+  if (typeof window.carregarGraficos === 'function') {
+    window.carregarGraficos();
+  }
 };
 
 // Aplica tema salvo ao carregar
 window.applyTheme(window.getTheme());
+
+// Event listener para o botão (sem onclick inline)
+document.addEventListener('DOMContentLoaded', function() {
+  const themeBtn = document.getElementById('btn-theme');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', window.toggleTheme);
+  }
+});
 
 // ── CLOCK ──
 function updateClock() {
@@ -743,7 +753,7 @@ async function carregarAnomalias() {
         <td>${a.marketplace ? `<span class="badge-mkt ${mktCls}">${a.marketplace}</span>` : '-'}</td>
         <td style="color:var(--text-muted);font-size:11px">${new Date(a.criado_em).toLocaleString('pt-BR')}</td>
         <td><button class="btn-resolver" onclick="resolver(${a.id}, this)">Resolver</button></td>
-      </tr>`;
+       </tr>`;
     }).join('');
   } catch(e) { console.error(e); }
 }
@@ -827,71 +837,6 @@ async function carregarGraficos() {
       }
     });
   } catch(e) { console.error(e); }
-}
-
-// ── CRIAÇÃO DO BOTÃO DE TEMA (SEM INLINE) ──
-function criarBotaoTema() {
-  const container = document.getElementById('theme-button-container');
-  if (!container) return;
-  
-  // Remove qualquer botão existente
-  container.innerHTML = '';
-  
-  const btn = document.createElement('button');
-  btn.className = 'btn-theme';
-  btn.id = 'btn-theme';
-  btn.title = 'Alternar tema';
-  
-  const temaAtual = window.getTheme();
-  btn.textContent = temaAtual === 'dark' ? '🌙' : '☀️';
-  
-  btn.addEventListener('click', function(e) {
-    e.preventDefault();
-    const next = window.getTheme() === 'dark' ? 'light' : 'dark';
-    localStorage.setItem('m360-theme', next);
-    window.applyTheme(next);
-    btn.textContent = next === 'dark' ? '🌙' : '☀️';
-    if (typeof window.carregarGraficos === 'function') {
-      window.carregarGraficos();
-    }
-  });
-  
-  container.appendChild(btn);
-}
-
-// Garantir que as funções de tema existem
-window.getTheme = function() { 
-  return localStorage.getItem('m360-theme') || 'dark'; 
-};
-
-window.applyTheme = function(t) {
-  if (t === 'light') {
-    document.documentElement.classList.add('light');
-  } else {
-    document.documentElement.classList.remove('light');
-  }
-  // Atualizar texto do botão se ele já existir
-  const btn = document.getElementById('btn-theme');
-  if (btn) {
-    btn.textContent = t === 'dark' ? '🌙' : '☀️';
-  }
-};
-
-window.toggleTheme = function() {
-  const next = window.getTheme() === 'dark' ? 'light' : 'dark';
-  localStorage.setItem('m360-theme', next);
-  window.applyTheme(next);
-  if (typeof window.carregarGraficos === 'function') window.carregarGraficos();
-};
-
-// Aplica tema salvo
-window.applyTheme(window.getTheme());
-
-// Criar o botão quando o DOM estiver pronto
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', criarBotaoTema);
-} else {
-  criarBotaoTema();
 }
 
 // ── REFRESH ──
