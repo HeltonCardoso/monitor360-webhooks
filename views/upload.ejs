@@ -435,10 +435,23 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
     const isCommaCsv     = fileExt === 'csv' && !bufferStr.includes(';'); // Magalu: UTF-8 + vírgula
     const isTsvOrTxt = fileExt === 'txt' || fileExt === 'tsv';
 
+    // Parser CSV genérico (respeita campos entre aspas com vírgula interna)
+    const parseCSVLine = (line) => {
+      const result = [];
+      let cur = '', inQuote = false;
+      for (const ch of line) {
+        if (ch === '"') { inQuote = !inQuote; }
+        else if (ch === ',' && !inQuote) { result.push(cur.trim()); cur = ''; }
+        else cur += ch;
+      }
+      result.push(cur.trim());
+      return result;
+    };
+
     let rawData = [];
 
     if (isTsvOrTxt) {
-      // Amazon: TSV (tab-separado)
+      // Amazon: TSV tab-separado UTF-8
       const text = req.file.buffer.toString('utf8');
       const lines = text.split('\n').filter(l => l.trim());
       const headers = lines[0].split('\t').map(h => h.trim());
@@ -448,8 +461,9 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
         headers.forEach((h, i) => { obj[h] = values[i]?.trim() || ''; });
         return obj;
       }).filter(row => Object.values(row).some(v => v));
+
     } else if (isSemicolonCsv) {
-      // MadeiraMadeira: CSV com ; e encoding latin1
+      // MadeiraMadeira: CSV ponto-e-vírgula latin1
       const text = req.file.buffer.toString('latin1');
       const lines = text.split('\n').filter(l => l.trim());
       const headers = lines[0].split(';').map(h => h.replace(/^"|"$/g, '').trim());
@@ -459,25 +473,11 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
         headers.forEach((h, i) => { obj[h] = values[i] || ''; });
         return obj;
       }).filter(row => Object.values(row).some(v => v));
-    } else if (isCommaCsv) {
-      // Magazine Luiza: CSV com vírgula, encoding UTF-8
-      // (usar xlsx.read aqui corromperia acentos nos cabeçalhos)
+
+    } else if (fileExt === 'csv') {
+      // CSV com vírgula (Magazine Luiza e outros): lê como UTF-8 para preservar acentos
       const text = req.file.buffer.toString('utf8');
       const lines = text.split('\n').filter(l => l.trim());
-
-      // Parser que respeita campos entre aspas (pode ter vírgula interna)
-      const parseCSVLine = (line) => {
-        const result = [];
-        let cur = '', inQuote = false;
-        for (const ch of line) {
-          if (ch === '"') { inQuote = !inQuote; }
-          else if (ch === ',' && !inQuote) { result.push(cur.trim()); cur = ''; }
-          else cur += ch;
-        }
-        result.push(cur.trim());
-        return result;
-      };
-
       const headers = parseCSVLine(lines[0]);
       rawData = lines.slice(1).map(line => {
         const values = parseCSVLine(line);
