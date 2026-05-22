@@ -160,29 +160,36 @@
 </div>
 
 <script>
-// ── TEMA ──
-function getTheme() { return localStorage.getItem('m360-theme') || 'dark'; }
+// ── TEMA (CORRIGIDO) ──
+window.getTheme = function() { 
+  return localStorage.getItem('m360-theme') || 'dark'; 
+};
 
-function applyTheme(t) {
+window.applyTheme = function(t) {
   const btn = document.getElementById('btn-theme');
   if (t === 'light') {
     document.documentElement.classList.add('light');
-    btn.textContent = '☀️';
-    btn.title = 'Alternar para tema escuro';
+    if (btn) {
+      btn.textContent = '☀️';
+      btn.title = 'Alternar para tema escuro';
+    }
   } else {
     document.documentElement.classList.remove('light');
-    btn.textContent = '🌙';
-    btn.title = 'Alternar para tema claro';
+    if (btn) {
+      btn.textContent = '🌙';
+      btn.title = 'Alternar para tema claro';
+    }
   }
-}
+};
 
-function toggleTheme() {
-  const next = getTheme() === 'dark' ? 'light' : 'dark';
+window.toggleTheme = function() {
+  const next = window.getTheme() === 'dark' ? 'light' : 'dark';
   localStorage.setItem('m360-theme', next);
-  applyTheme(next);
-}
+  window.applyTheme(next);
+};
 
-applyTheme(getTheme());
+// Aplica tema salvo ao carregar
+window.applyTheme(window.getTheme());
 
 // ── UPLOAD ──
 const uploadArea = document.getElementById('uploadArea');

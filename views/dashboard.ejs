@@ -590,32 +590,37 @@
 let chartStatus = null;
 let chartVolume = null;
 
-// ── TEMA ──
-function getTheme() { return localStorage.getItem('m360-theme') || 'dark'; }
+// ── TEMA (CORRIGIDO) ──
+window.getTheme = function() { 
+  return localStorage.getItem('m360-theme') || 'dark'; 
+};
 
-function applyTheme(t) {
+window.applyTheme = function(t) {
   const btn = document.getElementById('btn-theme');
   if (t === 'light') {
     document.documentElement.classList.add('light');
-    btn.textContent = '☀️';
-    btn.title = 'Alternar para tema escuro';
+    if (btn) {
+      btn.textContent = '☀️';
+      btn.title = 'Alternar para tema escuro';
+    }
   } else {
     document.documentElement.classList.remove('light');
-    btn.textContent = '🌙';
-    btn.title = 'Alternar para tema claro';
+    if (btn) {
+      btn.textContent = '🌙';
+      btn.title = 'Alternar para tema claro';
+    }
   }
-}
+};
 
-function toggleTheme() {
-  const next = getTheme() === 'dark' ? 'light' : 'dark';
+window.toggleTheme = function() {
+  const next = window.getTheme() === 'dark' ? 'light' : 'dark';
   localStorage.setItem('m360-theme', next);
-  applyTheme(next);
-  // Regerar gráficos com as novas cores de grade
-  carregarGraficos();
-}
+  window.applyTheme(next);
+  if (typeof carregarGraficos === 'function') carregarGraficos();
+};
 
 // Aplica tema salvo ao carregar
-applyTheme(getTheme());
+window.applyTheme(window.getTheme());
 
 // ── CLOCK ──
 function updateClock() {
@@ -635,10 +640,10 @@ function toast(msg, type = 'success') {
 
 // ── CORES DOS CHARTS (adapta ao tema) ──
 function chartGridColor() {
-  return getTheme() === 'light' ? 'rgba(180,200,220,.4)' : 'rgba(30,45,64,.5)';
+  return window.getTheme() === 'light' ? 'rgba(180,200,220,.4)' : 'rgba(30,45,64,.5)';
 }
 function chartTickColor() {
-  return getTheme() === 'light' ? '#637282' : '#64748b';
+  return window.getTheme() === 'light' ? '#637282' : '#64748b';
 }
 
 // ── MÉTRICAS ──
@@ -702,8 +707,8 @@ function renderMarketplace(list) {
   const max = Math.max(...list.map(m => parseInt(m.total)), 1);
   const mktColors = {
     SHOPEE: 'var(--accent2)',
-    MERCADO_LIVRE: getTheme()==='light'?'#c09000':'#ffd600',
-    MAGAZINE_LUIZA: getTheme()==='light'?'#0070cc':'#64b5f6'
+    MERCADO_LIVRE: window.getTheme()==='light'?'#c09000':'#ffd600',
+    MAGAZINE_LUIZA: window.getTheme()==='light'?'#0070cc':'#64b5f6'
   };
   el.innerHTML = list.map(m => {
     const pct = (parseInt(m.total) / max * 100).toFixed(0);
