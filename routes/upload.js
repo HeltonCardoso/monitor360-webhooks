@@ -54,6 +54,12 @@ function detectarMarketplace(keys) {
     return 'AMAZON';
   }
 
+  // Mercado Livre: tem "n.º de venda" ou "__EMPTY" (cabeçalho em linha 6)
+  if (joined.includes('n.º de venda') || joined.includes('numero de venda') ||
+      keys[0] === '__EMPTY') {
+    return 'MERCADO_LIVRE';
+  }
+
   return 'DESCONHECIDO';
 }
 
@@ -231,6 +237,57 @@ function extractAmazon(row) {
 }
 
 // ── HTML DA PÁGINA ──
+// ── MERCADO LIVRE ──
+// Colunas: N.º de venda, Data da venda, Estado, Descrição do status,
+//          Unidades, Receita por produtos (BRL), ...
+// Arquivo XLSX com 5 linhas de cabeçalho antes dos dados reais
+function extractMercadoLivre(row) {
+  let pedidoId = null;
+  let status   = 'DESCONHECIDO';
+  let valor    = 0;
+  let data     = null;
+  let cliente  = 'N/A';
+
+  for (const [key, value] of Object.entries(row)) {
+    const k = key.toString().trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    if (k === 'n.o de venda' || k === 'no de venda' || k.includes('n.') && k.includes('venda')) {
+      pedidoId = value?.toString().trim();
+    }
+    if (k === 'estado') {
+      status = value?.toString().trim() || 'DESCONHECIDO';
+    }
+    if (k.startsWith('receita por produtos')) {
+      valor = parseFloat(value?.toString().trim()) || 0;
+    }
+    if (k === 'data da venda') {
+      data = value?.toString().trim() || null;
+    }
+    if (k.includes('comprador') && !k.includes('acrescimo') && !k.includes('acréscimo')) {
+      cliente = value?.toString().trim() || 'N/A';
+    }
+  }
+
+  // Fallback: primeira coluna numérica longa = ID do ML
+  if (!pedidoId) {
+    const firstVal = Object.values(row)[0]?.toString().trim();
+    if (firstVal && firstVal.length >= 10 && !isNaN(firstVal)) {
+      pedidoId = firstVal;
+    }
+  }
+
+  return {
+    pedido_id_original:    pedidoId,
+    pedido_id_normalizado: pedidoId ? normalizeOrderId(pedidoId) : null,
+    marketplace: 'MERCADO_LIVRE',
+    status,
+    valor_total: valor,
+    cliente: (cliente || 'N/A').substring(0, 100),
+    data
+  };
+}
+
 router.get('/', (req, res) => res.render('upload'));
 
 router.get('/_legacy', (req, res) => {
@@ -462,7 +519,12 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
       const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      rawData = xlsx.utils.sheet_to_json(worksheet, { defval: '' });
+      let tempData = xlsx.utils.sheet_to_json(worksheet, { defval: '' });
+      // Mercado Livre: 5 linhas de cabecalho antes dos dados reais
+      if (tempData.length && Object.keys(tempData[0])[0] === '__EMPTY') {
+        tempData = xlsx.utils.sheet_to_json(worksheet, { defval: '', range: 5 });
+      }
+      rawData = tempData;
     }
 
     if (!rawData.length) return res.status(400).json({ error: 'Planilha vazia ou formato inválido' });
@@ -478,7 +540,7 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
 
     if (tipoPlanilha === 'DESCONHECIDO') {
       return res.status(400).json({
-        error: `⚠️ Marketplace não reconhecido. Formatos suportados: Amazon (.txt), MadeiraMadeira (.csv), Magazine Luiza (.csv), WebContinental (.xlsx)`,
+        error: `⚠️ Marketplace não reconhecido. Formatos suportados: Amazon (.txt), MadeiraMadeira (.csv), Magazine Luiza (.csv), WebContinental (.xlsx), Mercado Livre (.xlsx)`,
         debug: { fileName: req.file.originalname, primeiraColuna, colunas: keys.slice(0, 5) }
       });
     }
@@ -488,7 +550,8 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
       MAGAZINE_LUIZA:  extractMagalu,
       WEBCONTINENTAL:  extractWebContinental,
       MADEIRAMADEIRA:  extractMadeiraMadeira,
-      AMAZON:          extractAmazon
+      AMAZON:          extractAmazon,
+      MERCADO_LIVRE:   extractMercadoLivre
     };
     const pedidosPlanilha = rawData.map(extractors[tipoPlanilha]);
 

@@ -29,6 +29,7 @@
     .b-wc{background:rgba(0,230,118,.15);color:#00e676;border:1px solid rgba(0,230,118,.3)}
     .b-mm{background:rgba(139,90,43,.2);color:#a1887f;border:1px solid rgba(139,90,43,.3)}
     .b-az{background:rgba(255,153,0,.15);color:#ffb74d;border:1px solid rgba(255,153,0,.3)}
+    .b-ml{background:rgba(255,214,0,.15);color:#ffd600;border:1px solid rgba(255,214,0,.3)}
 
     /* LOADING */
     .loading-wrap{display:none;text-align:center;padding:44px;color:var(--muted)}
@@ -119,6 +120,7 @@
       <span class="badge b-wc">WebContinental .xls/.xlsx</span>
       <span class="badge b-mm">MadeiraMadeira .csv</span>
       <span class="badge b-az">Amazon .txt</span>
+      <span class="badge b-ml">Mercado Livre .xlsx</span>
     </div>
     <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.txt" style="display:none">
   </div>
@@ -161,7 +163,7 @@ async function doUpload(file) {
   }
 }
 
-const MKT = { MAGAZINE_LUIZA:'<span class="badge b-mg">Magazine Luiza</span>', WEBCONTINENTAL:'<span class="badge b-wc">WebContinental</span>', MADEIRAMADEIRA:'<span class="badge b-mm">MadeiraMadeira</span>', AMAZON:'<span class="badge b-az">Amazon</span>' };
+const MKT = { MAGAZINE_LUIZA:'<span class="badge b-mg">Magazine Luiza</span>', WEBCONTINENTAL:'<span class="badge b-wc">WebContinental</span>', MADEIRAMADEIRA:'<span class="badge b-mm">MadeiraMadeira</span>', AMAZON:'<span class="badge b-az">Amazon</span>', MERCADO_LIVRE:'<span class="badge b-ml">Mercado Livre</span>' };
 const CMP = { OK:'<span class="st st-ok">✓ Sincronizado</span>', ATRASADO:'<span class="st st-late">⚠ Atrasado</span>', DIVERGENTE:'<span class="st st-div">✕ Divergente</span>' };
 
 function fmt(v){ return 'R$ '+(parseFloat(v)||0).toFixed(2).replace('.',','); }
