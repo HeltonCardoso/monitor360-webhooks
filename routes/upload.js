@@ -60,6 +60,10 @@ function detectarMarketplace(keys) {
     return 'MERCADO_LIVRE';
   }
 
+  if (joined.includes('id do pedido') && joined.includes('status do pedido')) {
+  return 'SHOPEE';
+  }
+
   return 'DESCONHECIDO';
 }
 
@@ -236,6 +240,69 @@ function extractAmazon(row) {
   };
 }
 
+// ── SHOPEE ──
+// Colunas: ID do pedido, Status do pedido, Número de rastreamento,
+//          Data de criação do pedido, Valor Total, Nome de usuário (comprador), etc.
+function extractShopee(row) {
+  let pedidoId = null;
+  let status = 'DESCONHECIDO';
+  let valor = 0;
+  let cliente = 'N/A';
+  let data = null;
+  let rastreio = null;
+
+  for (const [key, value] of Object.entries(row)) {
+    const k = key.toString().trim();
+    const kl = k.toLowerCase();
+
+    // ID do pedido
+    if (k === 'ID do pedido' || kl === 'id do pedido') {
+      pedidoId = value?.toString().trim();
+    }
+    // Status do pedido
+    if (k === 'Status do pedido' || kl === 'status do pedido') {
+      status = value?.toString().trim() || 'DESCONHECIDO';
+    }
+    // Valor Total
+    if (k === 'Valor Total' || kl === 'valor total' || kl.includes('valor')) {
+      const valStr = value?.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+      valor = parseFloat(valStr) || 0;
+    }
+    // Nome do comprador
+    if (k === 'Nome de usuário (comprador)' || kl.includes('comprador') || kl.includes('usuário')) {
+      cliente = value?.toString().trim() || 'N/A';
+    }
+    // Data de criação
+    if (k === 'Data de criação do pedido' || kl.includes('data de criação')) {
+      data = value?.toString().trim() || null;
+    }
+    // Número de rastreamento
+    if (k === 'Número de rastreamento' || kl.includes('rastreamento')) {
+      rastreio = value?.toString().trim() || null;
+    }
+  }
+
+  // Fallback: pega o valor da primeira coluna se não achou ID
+  if (!pedidoId) {
+    const firstVal = Object.values(row)[0]?.toString().trim();
+    if (firstVal && firstVal.length >= 5) {
+      pedidoId = firstVal;
+    }
+  }
+
+  return {
+    pedido_id_original:    pedidoId,
+    pedido_id_normalizado: pedidoId ? normalizeOrderId(pedidoId) : null,
+    marketplace: 'SHOPEE',
+    status: status,
+    valor_total: valor,
+    cliente: (cliente || 'N/A').substring(0, 100),
+    data: data,
+    rastreio: rastreio,
+    raw: row
+  };
+}
+
 // ── HTML DA PÁGINA ──
 // ── MERCADO LIVRE ──
 // Colunas: N.º de venda, Data da venda, Estado, Descrição do status,
@@ -401,7 +468,8 @@ const mktBadge = {
   MAGAZINE_LUIZA: '<span class="badge badge-magalu">Magazine Luiza</span>',
   WEBCONTINENTAL: '<span class="badge badge-webcontinental">WebContinental</span>',
   MADEIRAMADEIRA: '<span class="badge badge-madeira">MadeiraMadeira</span>',
-  AMAZON:         '<span class="badge badge-amazon">Amazon</span>'
+  AMAZON:         '<span class="badge badge-amazon">Amazon</span>',
+  SHOPEE:         '<span class="badge badge-shopee">Shopee</span>'
 };
 
 function displayResults(data) {
@@ -551,7 +619,8 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
       WEBCONTINENTAL:  extractWebContinental,
       MADEIRAMADEIRA:  extractMadeiraMadeira,
       AMAZON:          extractAmazon,
-      MERCADO_LIVRE:   extractMercadoLivre
+      MERCADO_LIVRE:   extractMercadoLivre,
+      SHOPEE:          extractShopee
     };
     const pedidosPlanilha = rawData.map(extractors[tipoPlanilha]);
 
