@@ -63,31 +63,49 @@ function extractMagalu(row) {
   const rowKeys   = Object.keys(row);
   const rowValues = Object.values(row);
 
-  // Sanitiza para comparação: remove acentos Unicode E caracteres não-ASCII
-  // (cobre tanto UTF-8 correto quanto latin1 corrompido como NÃºmero)
-  const sanitize = (s) => s.toString().toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\x00-\x7f]/g, '')
-    .replace(/\s+/g, ' ').trim();
+  // Mapa de aliases: cobre nome correto (UTF-8), sem acento e versão corrompida (latin1 lido como UTF-8)
+  // Ex: xlsx.read() lê latin1 como UTF-8 e "Número" vira "NÃºmero"
+  const ALIASES = {
+    'numero do pedido':  ['número do pedido', 'numero do pedido', 'nãºmero do pedido', 'nümero do pedido'],
+    'numero do pacote':  ['número do pacote',  'numero do pacote',  'nãºmero do pacote'],
+    'status pacote':     ['status pacote no momento que o relatorio foi solicitado',
+                          'status pacote no momento que o relatório foi solicitado',
+                          'status pacote no momento que o relatã³rio foi solicitado'],
+    'valor total pacote': ['valor total do pacote', 'valor total dos produtos do pacote'],
+    'nome do cliente':   ['nome do cliente'],
+    'data do pacote':    ['data do pacote'],
+  };
 
-  const get = (...keys) => {
-    for (const key of keys) {
-      const found = rowKeys.find(k => sanitize(k) === sanitize(key));
-      if (found !== undefined && row[found] !== undefined && row[found] !== '')
-        return row[found]?.toString().trim();
+  const norm = (s) => s.toString().toLowerCase().replace(/\s+/g, ' ').trim();
+
+  const get = (...slots) => {
+    for (const slot of slots) {
+      const aliases = ALIASES[slot] || [slot];
+      for (const alias of aliases) {
+        const found = rowKeys.find(k => norm(k) === norm(alias));
+        if (found !== undefined && row[found] !== undefined && row[found] !== '')
+          return row[found].toString().trim();
+      }
     }
     return null;
   };
 
-  // Fallback por índice: Magalu col[0]=Data, col[1]=Nº pedido, col[2]=Nº pacote, col[3]=Status
-  const byIndex = (i) => (rowValues[i] !== undefined && rowValues[i] !== '') ? rowValues[i].toString().trim() : null;
+  // Fallback por posição — só funciona se xlsx separou as colunas corretamente
+  // (falha se xlsx tratou o CSV como coluna única; por isso vem depois do get())
+  const byIndex = (i) => {
+    const v = rowValues[i];
+    // Rejeita se o valor parece ser a linha inteira (contém vírgula = xlsx não separou)
+    if (v === undefined || v === null) return null;
+    const s = v.toString().trim();
+    return (s && !s.includes(',')) ? s : null;
+  };
 
-  const numeroPedido = get('Numero do pedido', 'Number do pedido') || byIndex(1);
-  const numeroPacote = get('Numero do pacote', 'Number do pacote') || byIndex(2);
-  const status       = get('Status pacote no momento que o relatorio foi solicitado') || byIndex(3) || 'DESCONHECIDO';
-  const valorStr     = get('Valor total do Pacote', 'Valor total dos Produtos do pacote') || byIndex(8);
-  const cliente      = get('Nome do cliente') || 'N/A';
-  const dataStr      = get('Data do Pacote') || byIndex(0);
+  const numeroPedido = get('numero do pedido') || byIndex(1);
+  const numeroPacote = get('numero do pacote') || byIndex(2);
+  const status       = get('status pacote')    || byIndex(3) || 'DESCONHECIDO';
+  const valorStr     = get('valor total pacote')|| byIndex(8);
+  const cliente      = get('nome do cliente')  || 'N/A';
+  const dataStr      = get('data do pacote')   || byIndex(0);
 
   // Usa número do pedido como ID base (sem sufixo de pacote)
   const pedidoId = numeroPedido || numeroPacote;
