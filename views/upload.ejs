@@ -11,12 +11,14 @@
       --bg:#0a0e17; --surface:#111827; --surface2:#1a2332;
       --border:#1e2d40; --accent:#00d4ff; --success:#00e676;
       --warning:#ffab00; --danger:#ff1744; --text:#e2e8f0; --muted:#64748b;
+      --accent2:#ff6b35;
     }
     /* ── TEMA CLARO ── */
     html.light {
       --bg:#f0f4f8; --surface:#ffffff; --surface2:#e8eef5;
       --border:#c8d6e5; --accent:#0099bb; --success:#00a854;
       --warning:#d48000; --danger:#d01030; --text:#1a2332; --muted:#637282;
+      --accent2:#e05520;
     }
 
     *{box-sizing:border-box;margin:0;padding:0}
@@ -28,15 +30,13 @@
     .topbar-back{color:var(--muted);text-decoration:none;font-size:12px}
     .topbar-back:hover{color:var(--accent)}
 
-    /* ── BOTÃO TEMA ── */
     .btn-theme{background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:32px;height:32px;border-radius:4px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .2s}
     .btn-theme:hover{border-color:var(--accent);color:var(--accent)}
 
-    .main{margin-top:52px;padding:28px;max-width:1300px;margin-left:auto;margin-right:auto}
+    .main{margin-top:52px;padding:28px;max-width:1400px;margin-left:auto;margin-right:auto}
     .page-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:20px}
     .page-title span{color:var(--accent)}
 
-    /* UPLOAD */
     .upload-wrap{background:var(--surface);border:2px dashed var(--border);border-radius:8px;padding:44px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:20px}
     .upload-wrap:hover,.upload-wrap.drag{border-color:var(--accent);background:rgba(0,180,220,.04)}
     .upload-icon{font-size:44px;margin-bottom:14px;display:block}
@@ -54,13 +54,13 @@
     html:not(.light) .b-az{color:#ffb74d}
     .b-ml{background:rgba(180,140,0,.15);color:#8a6d00;border:1px solid rgba(180,140,0,.3)}
     html:not(.light) .b-ml{color:#ffd600}
+    .b-shopee{background:rgba(238,77,45,.15);color:#d94a2a;border:1px solid rgba(238,77,45,.3)}
+    html:not(.light) .b-shopee{color:#ff7043}
 
-    /* LOADING */
     .loading-wrap{display:none;text-align:center;padding:44px;color:var(--muted)}
     .spinner{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;display:inline-block;margin-bottom:10px}
     @keyframes spin{to{transform:rotate(360deg)}}
 
-    /* METRICS */
     .metrics-row{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:16px}
     .mc{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:13px 12px;position:relative;overflow:hidden;transition:background .25s,border-color .25s}
     .mc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
@@ -76,8 +76,7 @@
     .prog-wrap{background:var(--surface2);border-radius:2px;height:4px;margin-top:6px;overflow:hidden}
     .prog{height:100%;background:linear-gradient(90deg,var(--accent),var(--success));border-radius:2px;transition:width 1s}
 
-    /* TABS */
-    .tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:14px}
+    .tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:14px;flex-wrap:wrap}
     .tab{padding:9px 18px;cursor:pointer;color:var(--muted);font-size:12px;border-bottom:2px solid transparent;transition:all .2s;display:flex;align-items:center;gap:7px}
     .tab:hover{color:var(--text)}
     .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
@@ -85,14 +84,12 @@
     .tab.active .tab-cnt{background:rgba(0,180,220,.15);color:var(--accent)}
     .tab-panel{display:none}.tab-panel.active{display:block}
 
-    /* SEARCH */
-    .search-bar{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+    .search-bar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
     .si{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 13px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;width:260px;outline:none}
     .si:focus{border-color:var(--accent)}
-    .fs{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 11px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none}
+    .fs{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 11px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;cursor:pointer}
     .sc{color:var(--muted);font-size:11px;margin-left:auto}
 
-    /* TABLE */
     .tbl-wrap{overflow-x:auto}
     table{width:100%;border-collapse:collapse}
     th{padding:7px 11px;text-align:left;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap}
@@ -100,7 +97,6 @@
     tr:hover td{background:rgba(0,180,220,.03)}
     code{background:var(--surface2);padding:2px 6px;border-radius:3px;font-size:11px;color:var(--accent)}
 
-    /* STATUS PILLS */
     .st{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600;white-space:nowrap}
     .st-ok{background:rgba(0,168,84,.1);color:var(--success);border:1px solid rgba(0,168,84,.2)}
     .st-late{background:rgba(200,128,0,.1);color:var(--warning);border:1px solid rgba(200,128,0,.2)}
@@ -109,17 +105,16 @@
     .st-sis{background:rgba(0,180,220,.08);color:var(--accent);border:1px solid rgba(0,180,220,.15)}
     .stage{display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:.5px}
     .stage-ANYMARKET{background:rgba(0,180,220,.1);color:var(--accent)}
-    .stage-JET{background:rgba(224,85,32,.1);color:var(--accent2,#e05520)}
+    .stage-JET{background:rgba(224,85,32,.1);color:var(--accent2)}
     .stage-ONCLICK{background:rgba(0,168,84,.1);color:var(--success)}
     .stage-RETORNO_JET{background:rgba(180,140,0,.1);color:var(--warning)}
     .stage-RETORNO_ANYMARKET{background:rgba(150,50,200,.1);color:#a855d0}
 
-    /* MISC */
     .error-card{background:rgba(208,16,48,.07);border:1px solid rgba(208,16,48,.2);border-radius:6px;padding:14px;color:var(--danger)}
     .debug-box{background:var(--surface2);border-radius:4px;padding:10px;font-size:11px;color:var(--muted);margin-top:8px;white-space:pre-wrap}
     .btn{background:var(--surface2);border:1px solid var(--border);color:var(--accent);padding:7px 16px;border-radius:4px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;transition:all .2s}
     .btn:hover{background:var(--accent);color:var(--bg)}
-    .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
 
     @media(max-width:900px){.metrics-row{grid-template-columns:repeat(3,1fr)}}
     @media(max-width:600px){.metrics-row{grid-template-columns:repeat(2,1fr)}}
@@ -143,11 +138,12 @@
     <div class="upload-title">Arraste o arquivo ou clique para selecionar</div>
     <div class="upload-sub">Compare os pedidos da planilha com o que está integrado no sistema</div>
     <div class="badges">
-      <span class="badge b-mg">Magazine Luiza .csv</span>
-      <span class="badge b-wc">WebContinental .xls/.xlsx</span>
-      <span class="badge b-mm">MadeiraMadeira .csv</span>
-      <span class="badge b-az">Amazon .txt</span>
-      <span class="badge b-ml">Mercado Livre .xlsx</span>
+      <span class="badge b-mg">Magazine Luiza</span>
+      <span class="badge b-wc">WebContinental</span>
+      <span class="badge b-mm">MadeiraMadeira</span>
+      <span class="badge b-az">Amazon</span>
+      <span class="badge b-ml">Mercado Livre</span>
+      <span class="badge b-shopee">Shopee</span>
     </div>
     <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.txt" style="display:none">
   </div>
@@ -156,29 +152,25 @@
     <div class="spinner"></div><br>Processando e comparando com o banco...
   </div>
 
-  <div id="results"></div>
+  <div id="results" style="display:none;"></div>
 </div>
 
 <script>
-// ── TEMA (CORRIGIDO) ──
+// ── TEMA ──
 window.getTheme = function() { 
   return localStorage.getItem('m360-theme') || 'dark'; 
 };
 
 window.applyTheme = function(t) {
-  const btn = document.getElementById('btn-theme');
   if (t === 'light') {
     document.documentElement.classList.add('light');
-    if (btn) {
-      btn.textContent = '☀️';
-      btn.title = 'Alternar para tema escuro';
-    }
   } else {
     document.documentElement.classList.remove('light');
-    if (btn) {
-      btn.textContent = '🌙';
-      btn.title = 'Alternar para tema claro';
-    }
+  }
+  const btn = document.getElementById('btn-theme');
+  if (btn) {
+    btn.textContent = t === 'dark' ? '🌙' : '☀️';
+    btn.title = t === 'dark' ? 'Alternar para tema claro' : 'Alternar para tema escuro';
   }
 };
 
@@ -188,8 +180,28 @@ window.toggleTheme = function() {
   window.applyTheme(next);
 };
 
-// Aplica tema salvo ao carregar
+function criarBotaoTema() {
+  const container = document.getElementById('theme-button-container');
+  if (!container) return;
+  container.innerHTML = '';
+  const btn = document.createElement('button');
+  btn.className = 'btn-theme';
+  btn.id = 'btn-theme';
+  const temaAtual = window.getTheme();
+  btn.textContent = temaAtual === 'dark' ? '🌙' : '☀️';
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.toggleTheme();
+  });
+  container.appendChild(btn);
+}
+
 window.applyTheme(window.getTheme());
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', criarBotaoTema);
+} else {
+  criarBotaoTema();
+}
 
 // ── UPLOAD ──
 const uploadArea = document.getElementById('uploadArea');
@@ -200,7 +212,11 @@ const results    = document.getElementById('results');
 uploadArea.onclick = () => fileInput.click();
 uploadArea.ondragover  = e => { e.preventDefault(); uploadArea.classList.add('drag'); };
 uploadArea.ondragleave = () => uploadArea.classList.remove('drag');
-uploadArea.ondrop = e => { e.preventDefault(); uploadArea.classList.remove('drag'); if(e.dataTransfer.files[0]) doUpload(e.dataTransfer.files[0]); };
+uploadArea.ondrop = e => { 
+  e.preventDefault(); 
+  uploadArea.classList.remove('drag'); 
+  if(e.dataTransfer.files[0]) doUpload(e.dataTransfer.files[0]); 
+};
 fileInput.onchange = e => { if(e.target.files[0]) doUpload(e.target.files[0]); };
 
 async function doUpload(file) {
@@ -216,19 +232,31 @@ async function doUpload(file) {
     render(d, file.name);
   } catch(e) {
     results.innerHTML = `<div class="error-card">❌ Erro: ${e.message}</div>`;
+    results.style.display = 'block';
+    uploadArea.style.display = '';
+    loading.style.display = 'none';
   } finally {
     loading.style.display = 'none';
     results.style.display = 'block';
   }
 }
 
+function reset() {
+  results.style.display = 'none';
+  results.innerHTML = '';
+  uploadArea.style.display = '';
+  fileInput.value = '';
+}
+
 const MKT = {
-  MAGAZINE_LUIZA:'<span class="badge b-mg">Magazine Luiza</span>',
-  WEBCONTINENTAL:'<span class="badge b-wc">WebContinental</span>',
-  MADEIRAMADEIRA:'<span class="badge b-mm">MadeiraMadeira</span>',
-  AMAZON:'<span class="badge b-az">Amazon</span>',
-  MERCADO_LIVRE:'<span class="badge b-ml">Mercado Livre</span>'
+  MAGAZINE_LUIZA:'<span class="badge b-mg">📱 Magazine Luiza</span>',
+  WEBCONTINENTAL:'<span class="badge b-wc">💻 WebContinental</span>',
+  MADEIRAMADEIRA:'<span class="badge b-mm">🪵 MadeiraMadeira</span>',
+  AMAZON:'<span class="badge b-az">🛒 Amazon</span>',
+  MERCADO_LIVRE:'<span class="badge b-ml">📦 Mercado Livre</span>',
+  SHOPEE:'<span class="badge b-shopee">📱 Shopee</span>'
 };
+
 const CMP = {
   OK:'<span class="st st-ok">✓ Sincronizado</span>',
   ATRASADO:'<span class="st st-late">⚠ Atrasado</span>',
@@ -241,191 +269,215 @@ function stMkt(s){ return `<span class="st st-mkt">${s||'?'}</span>`; }
 function stSis(s){ return `<span class="st st-sis">${s||'?'}</span>`; }
 function stStage(s){ return s?`<span class="stage stage-${s}">${s}</span>`:'-'; }
 
-let allInteg=[], allNaoInteg=[];
+let allInteg = [];
+let allNaoInteg = [];
 
 function render(data, fileName) {
   if(data.error){
     results.innerHTML = `<div class="error-card">⚠️ ${data.error}${data.debug?`<div class="debug-box">${JSON.stringify(data.debug,null,2)}</div>`:''}</div><button class="btn" onclick="reset()" style="margin-top:12px">← Enviar outro arquivo</button>`;
     return;
   }
-  allInteg    = data.integrados    || [];
+  
+  allInteg = data.integrados || [];
   allNaoInteg = data.nao_integrados || [];
-  const total  = data.total_planilha;
-  const integ  = data.total_integrados;
+  
+  const total = data.total_planilha;
+  const integ = data.total_integrados;
   const nInteg = data.total_nao_integrados;
-  const taxa   = total>0?((integ/total)*100).toFixed(1):0;
-  const rs     = data.resumo_status||{};
-  const prob   = (rs.atrasados||0)+(rs.divergentes||0);
+  const taxa = total > 0 ? ((integ / total) * 100).toFixed(1) : 0;
+  const rs = data.resumo_status || {};
+  const prob = (rs.atrasados || 0) + (rs.divergentes || 0);
 
   results.innerHTML = `
   <div class="hdr">
-    <div style="display:flex;align-items:center;gap:10px">${MKT[data.tipo_planilha]||data.tipo_planilha}<span style="color:var(--muted);font-size:12px">${fileName}</span></div>
-    <button class="btn" onclick="reset()">← Novo arquivo</button>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      ${MKT[data.tipo_planilha] || data.tipo_planilha}
+      <span style="color:var(--muted);font-size:12px">${fileName}</span>
+    </div>
+    <button class="btn" onclick="reset()">📁 Novo arquivo</button>
   </div>
 
   <div class="metrics-row">
-    <div class="mc mc-blue"><div class="mv">${total}</div><div class="ml">TOTAL</div></div>
+    <div class="mc mc-blue"><div class="mv">${total}</div><div class="ml">TOTAL NA PLANILHA</div></div>
     <div class="mc mc-green"><div class="mv">${integ}</div><div class="ml">INTEGRADOS</div></div>
     <div class="mc mc-red"><div class="mv">${nInteg}</div><div class="ml">NÃO INTEGRADOS</div></div>
-    <div class="mc mc-pct"><div class="mv">${taxa}%</div><div class="ml">TAXA</div><div class="prog-wrap"><div class="prog" style="width:${taxa}%"></div></div></div>
-    <div class="mc mc-ok"><div class="mv">${rs.sincronizados||0}</div><div class="ml">SINCRONIZADOS</div></div>
-    <div class="mc mc-late"><div class="mv">${rs.atrasados||0}</div><div class="ml">ATRASADOS</div></div>
-    <div class="mc mc-div"><div class="mv">${rs.divergentes||0}</div><div class="ml">DIVERGENTES</div></div>
+    <div class="mc mc-pct"><div class="mv">${taxa}%</div><div class="ml">TAXA DE INTEGRAÇÃO</div><div class="prog-wrap"><div class="prog" style="width:${taxa}%"></div></div></div>
+    <div class="mc mc-ok"><div class="mv">${rs.sincronizados || 0}</div><div class="ml">SINCRONIZADOS</div></div>
+    <div class="mc mc-late"><div class="mv">${rs.atrasados || 0}</div><div class="ml">ATRASADOS</div></div>
+    <div class="mc mc-div"><div class="mv">${rs.divergentes || 0}</div><div class="ml">DIVERGENTES</div></div>
   </div>
 
   <div class="tabs">
-    <div class="tab active" onclick="switchTab('integ',this)">✅ Integrados <span class="tab-cnt">${integ}</span></div>
-    <div class="tab" onclick="switchTab('nao',this)">❌ Não Integrados <span class="tab-cnt">${nInteg}</span></div>
-    <div class="tab" onclick="switchTab('prob',this)">⚠️ Divergentes/Atrasados <span class="tab-cnt">${prob}</span></div>
+    <div class="tab active" data-tab="integ">✅ Integrados <span class="tab-cnt">${integ}</span></div>
+    <div class="tab" data-tab="nao">❌ Não Integrados <span class="tab-cnt">${nInteg}</span></div>
+    <div class="tab" data-tab="prob">⚠️ Divergentes/Atrasados <span class="tab-cnt">${prob}</span></div>
   </div>
 
   <div class="tab-panel active" id="panel-integ">
     <div class="search-bar">
-      <input class="si" id="si-integ" placeholder="Buscar ID ou cliente..." oninput="renderTables()">
+      <input class="si" id="si-integ" placeholder="🔍 Buscar por ID ou cliente..." oninput="renderTables()">
       <select class="fs" id="fs-integ" onchange="renderTables()">
-        <option value="">Todos</option><option value="OK">Sincronizados</option>
-        <option value="ATRASADO">Atrasados</option><option value="DIVERGENTE">Divergentes</option>
+        <option value="">📋 Todos</option>
+        <option value="OK">✓ Sincronizados</option>
+        <option value="ATRASADO">⚠️ Atrasados</option>
+        <option value="DIVERGENTE">✕ Divergentes</option>
       </select>
       <span class="sc" id="sc-integ"></span>
     </div>
-    <div class="tbl-wrap"><table><thead><tr>
-      <th>ID PEDIDO</th><th>CLIENTE</th><th>VALOR</th><th>DATA</th>
-      <th>STATUS MARKETPLACE</th><th>STATUS SISTEMA</th><th>ESTÁGIO</th><th>COMPARAÇÃO</th>
-    </tr></thead><tbody id="body-integ"></tbody></table></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>ID PEDIDO</th><th>CLIENTE</th><th>VALOR</th><th>DATA</th><th>STATUS MARKETPLACE</th><th>STATUS SISTEMA</th><th>ESTÁGIO</th><th>COMPARAÇÃO</th></tr>
+        </thead>
+        <tbody id="body-integ"></tbody>
+       </table>
+    </div>
   </div>
 
   <div class="tab-panel" id="panel-nao">
     <div class="search-bar">
-      <input class="si" id="si-nao" placeholder="Buscar ID ou cliente..." oninput="renderTables()">
+      <input class="si" id="si-nao" placeholder="🔍 Buscar por ID ou cliente..." oninput="renderTables()">
       <span class="sc" id="sc-nao"></span>
     </div>
-    <div class="tbl-wrap"><table><thead><tr>
-      <th>ID PLANILHA</th><th>ID NORMALIZADO</th><th>CLIENTE</th><th>VALOR</th><th>STATUS MARKETPLACE</th><th>DATA</th>
-    </tr></thead><tbody id="body-nao"></tbody></table></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>ID PLANILHA</th><th>ID NORMALIZADO</th><th>CLIENTE</th><th>VALOR</th><th>STATUS MARKETPLACE</th><th>DATA</th></tr>
+        </thead>
+        <tbody id="body-nao"></tbody>
+       </table>
+    </div>
   </div>
 
   <div class="tab-panel" id="panel-prob">
     <div class="search-bar">
-      <input class="si" id="si-prob" placeholder="Buscar ID ou cliente..." oninput="renderTables()">
+      <input class="si" id="si-prob" placeholder="🔍 Buscar por ID ou cliente..." oninput="renderTables()">
       <span class="sc" id="sc-prob"></span>
     </div>
-    <div class="tbl-wrap"><table><thead><tr>
-      <th>ID PEDIDO</th><th>CLIENTE</th><th>VALOR</th><th>STATUS MARKETPLACE</th><th>STATUS SISTEMA</th><th>ESTÁGIO</th><th>SITUAÇÃO</th>
-    </tr></thead><tbody id="body-prob"></tbody></table></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>ID PEDIDO</th><th>CLIENTE</th><th>VALOR</th><th>STATUS MARKETPLACE</th><th>STATUS SISTEMA</th><th>ESTÁGIO</th><th>SITUAÇÃO</th></tr>
+        </thead>
+        <tbody id="body-prob"></tbody>
+       </table>
+    </div>
   </div>`;
 
+  // Configurar os tabs
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.onclick = () => {
+      const tabId = tab.getAttribute('data-tab');
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(`panel-${tabId}`).classList.add('active');
+      // Forçar re-renderização para garantir
+      renderTables();
+    };
+  });
+  
   renderTables();
 }
 
-function more(n, cols){ return n>200?`<tr><td colspan="${cols}" style="color:var(--muted);text-align:center">... e mais ${n-200} pedidos</td></tr>`:''; }
-
-function renderTables(){
-  const siI = (document.getElementById('si-integ')?.value||'').toLowerCase();
-  const fsI = document.getElementById('fs-integ')?.value||'';
-  const siN = (document.getElementById('si-nao')?.value||'').toLowerCase();
-  const siP = (document.getElementById('si-prob')?.value||'').toLowerCase();
-
-  const fI = allInteg.filter(p=>(!siI||p.pedido_id_original?.toLowerCase().includes(siI)||p.cliente?.toLowerCase().includes(siI))&&(!fsI||p.comparacao===fsI));
-  const fN = allNaoInteg.filter(p=>!siN||p.pedido_id_original?.toLowerCase().includes(siN)||p.cliente?.toLowerCase().includes(siN));
-  const fP = allInteg.filter(p=>p.comparacao!=='OK'&&(!siP||p.pedido_id_original?.toLowerCase().includes(siP)||p.cliente?.toLowerCase().includes(siP)));
-
-  document.getElementById('sc-integ').textContent = fI.length+' pedidos';
-  document.getElementById('sc-nao').textContent   = fN.length+' pedidos';
-  document.getElementById('sc-prob').textContent  = fP.length+' pedidos';
-
-  document.getElementById('body-integ').innerHTML = fI.slice(0,200).map(p=>`<tr>
-    <td><code>${p.pedido_id_original||'-'}</code></td>
-    <td>${(p.cliente||'-').substring(0,35)}</td>
-    <td>${fmt(p.valor_total)}</td>
-    <td style="color:var(--muted)">${fmtD(p.data)}</td>
-    <td>${stMkt(p.status_marketplace)}</td>
-    <td>${p.status_sistema?stSis(p.status_sistema):'-'}</td>
-    <td>${stStage(p.estagio_sistema)}</td>
-    <td>${CMP[p.comparacao]||p.comparacao}</td>
-  </tr>`).join('')+more(fI.length,8);
-
-  document.getElementById('body-nao').innerHTML = fN.slice(0,200).map(p=>`<tr>
-    <td><code>${p.pedido_id_original||'-'}</code></td>
-    <td><code style="color:var(--muted)">${p.pedido_id_normalizado||'-'}</code></td>
-    <td>${(p.cliente||'-').substring(0,35)}</td>
-    <td>${fmt(p.valor_total)}</td>
-    <td>${stMkt(p.status||'-')}</td>
-    <td style="color:var(--muted)">${fmtD(p.data)}</td>
-  </tr>`).join('')+more(fN.length,6);
-
-  document.getElementById('body-prob').innerHTML = fP.slice(0,200).map(p=>`<tr>
-    <td><code>${p.pedido_id_original||'-'}</code></td>
-    <td>${(p.cliente||'-').substring(0,35)}</td>
-    <td>${fmt(p.valor_total)}</td>
-    <td>${stMkt(p.status_marketplace)}</td>
-    <td>${p.status_sistema?stSis(p.status_sistema):'-'}</td>
-    <td>${stStage(p.estagio_sistema)}</td>
-    <td>${CMP[p.comparacao]||p.comparacao}</td>
-  </tr>`).join('')+more(fP.length,7);
-}
-
-function switchTab(id, el){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('panel-'+id).classList.add('active');
-}
-
-// ── CRIAÇÃO DO BOTÃO DE TEMA (SEM INLINE) ──
-function criarBotaoTema() {
-  const container = document.getElementById('theme-button-container');
-  if (!container) return;
+function renderTables() {
+  // Tab Integrados
+  const siI = (document.getElementById('si-integ')?.value || '').toLowerCase();
+  const fsI = document.getElementById('fs-integ')?.value || '';
   
-  container.innerHTML = '';
-  
-  const btn = document.createElement('button');
-  btn.className = 'btn-theme';
-  btn.id = 'btn-theme';
-  btn.title = 'Alternar tema';
-  
-  const temaAtual = window.getTheme();
-  btn.textContent = temaAtual === 'dark' ? '🌙' : '☀️';
-  
-  btn.addEventListener('click', function(e) {
-    e.preventDefault();
-    const next = window.getTheme() === 'dark' ? 'light' : 'dark';
-    localStorage.setItem('m360-theme', next);
-    window.applyTheme(next);
-    btn.textContent = next === 'dark' ? '🌙' : '☀️';
-  });
-  
-  container.appendChild(btn);
-}
-
-window.getTheme = function() { 
-  return localStorage.getItem('m360-theme') || 'dark'; 
-};
-
-window.applyTheme = function(t) {
-  if (t === 'light') {
-    document.documentElement.classList.add('light');
-  } else {
-    document.documentElement.classList.remove('light');
+  let filteredInteg = [...allInteg];
+  if (siI) {
+    filteredInteg = filteredInteg.filter(p => 
+      (p.pedido_id_original?.toLowerCase().includes(siI)) || 
+      (p.cliente?.toLowerCase().includes(siI))
+    );
   }
-  const btn = document.getElementById('btn-theme');
-  if (btn) {
-    btn.textContent = t === 'dark' ? '🌙' : '☀️';
+  if (fsI) {
+    filteredInteg = filteredInteg.filter(p => p.comparacao === fsI);
   }
-};
+  
+  const scInteg = document.getElementById('sc-integ');
+  if (scInteg) scInteg.textContent = `${filteredInteg.length} pedidos`;
+  
+  const bodyInteg = document.getElementById('body-integ');
+  if (bodyInteg) {
+    bodyInteg.innerHTML = filteredInteg.slice(0, 200).map(p => `
+      <tr>
+        <td><code>${p.pedido_id_original || '-'}</code></td>
+        <td>${(p.cliente || '-').substring(0, 35)}</td>
+        <td>${fmt(p.valor_total)}</td>
+        <td style="color:var(--muted)">${fmtD(p.data)}</td>
+        <td>${stMkt(p.status_marketplace)}</td>
+        <td>${p.status_sistema ? stSis(p.status_sistema) : '-'}</td>
+        <td>${stStage(p.estagio_sistema)}</td>
+        <td>${CMP[p.comparacao] || p.comparacao}</td>
+      </tr>
+    `).join('');
+    if (filteredInteg.length > 200) {
+      bodyInteg.innerHTML += `<tr><td colspan="8" style="color:var(--muted);text-align:center">... e mais ${filteredInteg.length - 200} pedidos</td></tr>`;
+    }
+  }
 
-window.applyTheme(window.getTheme());
+  // Tab Não Integrados
+  const siN = (document.getElementById('si-nao')?.value || '').toLowerCase();
+  let filteredNao = [...allNaoInteg];
+  if (siN) {
+    filteredNao = filteredNao.filter(p => 
+      (p.pedido_id_original?.toLowerCase().includes(siN)) || 
+      (p.cliente?.toLowerCase().includes(siN))
+    );
+  }
+  
+  const scNao = document.getElementById('sc-nao');
+  if (scNao) scNao.textContent = `${filteredNao.length} pedidos`;
+  
+  const bodyNao = document.getElementById('body-nao');
+  if (bodyNao) {
+    bodyNao.innerHTML = filteredNao.slice(0, 200).map(p => `
+      <tr>
+        <td><code>${p.pedido_id_original || '-'}</code></td>
+        <td><code style="color:var(--muted)">${p.pedido_id_normalizado || '-'}</code></td>
+        <td>${(p.cliente || '-').substring(0, 35)}</td>
+        <td>${fmt(p.valor_total)}</td>
+        <td>${stMkt(p.status || '-')}</td>
+        <td style="color:var(--muted)">${fmtD(p.data)}</td>
+      </tr>
+    `).join('');
+    if (filteredNao.length > 200) {
+      bodyNao.innerHTML += `<tr><td colspan="6" style="color:var(--muted);text-align:center">... e mais ${filteredNao.length - 200} pedidos</td></tr>`;
+    }
+  }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', criarBotaoTema);
-} else {
-  criarBotaoTema();
-}
-
-function reset(){
-  results.style.display='none';
-  results.innerHTML='';
-  uploadArea.style.display='';
-  fileInput.value='';
+  // Tab Divergentes/Atrasados
+  const siP = (document.getElementById('si-prob')?.value || '').toLowerCase();
+  let filteredProb = allInteg.filter(p => p.comparacao !== 'OK');
+  if (siP) {
+    filteredProb = filteredProb.filter(p => 
+      (p.pedido_id_original?.toLowerCase().includes(siP)) || 
+      (p.cliente?.toLowerCase().includes(siP))
+    );
+  }
+  
+  const scProb = document.getElementById('sc-prob');
+  if (scProb) scProb.textContent = `${filteredProb.length} pedidos`;
+  
+  const bodyProb = document.getElementById('body-prob');
+  if (bodyProb) {
+    bodyProb.innerHTML = filteredProb.slice(0, 200).map(p => `
+      <tr>
+        <td><code>${p.pedido_id_original || '-'}</code></td>
+        <td>${(p.cliente || '-').substring(0, 35)}</td>
+        <td>${fmt(p.valor_total)}</td>
+        <td>${stMkt(p.status_marketplace)}</td>
+        <td>${p.status_sistema ? stSis(p.status_sistema) : '-'}</td>
+        <td>${stStage(p.estagio_sistema)}</td>
+        <td>${CMP[p.comparacao] || p.comparacao}</td>
+      </tr>
+    `).join('');
+    if (filteredProb.length > 200) {
+      bodyProb.innerHTML += `<tr><td colspan="7" style="color:var(--muted);text-align:center">... e mais ${filteredProb.length - 200} pedidos</td></tr>`;
+    }
+  }
 }
 </script>
 </body>
