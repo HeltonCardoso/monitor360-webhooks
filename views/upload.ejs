@@ -56,62 +56,57 @@ function detectarMarketplace(keys) {
 }
 
 // ── MAGAZINE LUIZA ──
-// Colunas: Data do Pacote, Número do pedido, Número do pacote,
-//          Status pacote..., Qtd itens, Valor total dos Produtos,
-//          Descontos, Frete, Valor total do Pacote, ..., Nome do cliente, ...
+// Colunas fixas: [0]Data [1]Nº pedido [2]Nº pacote [3]Status [4]Qtd [5]Valor Produtos
+//                [6]Desconto [7]Frete [8]Valor total Pacote ... [24]Nome cliente
 function extractMagalu(row) {
   const rowKeys   = Object.keys(row);
   const rowValues = Object.values(row);
 
-  // Mapa de aliases: cobre nome correto (UTF-8), sem acento e versão corrompida (latin1 lido como UTF-8)
-  // Ex: xlsx.read() lê latin1 como UTF-8 e "Número" vira "NÃºmero"
-  const ALIASES = {
-    'numero do pedido':  ['número do pedido', 'numero do pedido', 'nãºmero do pedido', 'nümero do pedido'],
-    'numero do pacote':  ['número do pacote',  'numero do pacote',  'nãºmero do pacote'],
-    'status pacote':     ['status pacote no momento que o relatorio foi solicitado',
-                          'status pacote no momento que o relatório foi solicitado',
-                          'status pacote no momento que o relatã³rio foi solicitado'],
-    'valor total pacote': ['valor total do pacote', 'valor total dos produtos do pacote'],
-    'nome do cliente':   ['nome do cliente'],
-    'data do pacote':    ['data do pacote'],
-  };
-
-  const norm = (s) => s.toString().toLowerCase().replace(/\s+/g, ' ').trim();
-
-  const get = (...slots) => {
-    for (const slot of slots) {
-      const aliases = ALIASES[slot] || [slot];
-      for (const alias of aliases) {
-        const found = rowKeys.find(k => norm(k) === norm(alias));
-        if (found !== undefined && row[found] !== undefined && row[found] !== '')
-          return row[found].toString().trim();
-      }
+  // Busca por nome: compara lower+trim direto (sem remover chars especiais)
+  // Inclui a versão corrompida (latin1 lido como UTF-8) explicitamente nos aliases
+  const findKey = (aliases) => {
+    for (const alias of aliases) {
+      const found = rowKeys.find(k => k.toLowerCase().trim() === alias.toLowerCase().trim());
+      if (found !== undefined && row[found] !== undefined && row[found] !== '')
+        return row[found].toString().trim();
     }
     return null;
   };
 
-  // Fallback por posição — só funciona se xlsx separou as colunas corretamente
-  // (falha se xlsx tratou o CSV como coluna única; por isso vem depois do get())
+  // Fallback por índice — rejeita se o valor contém vírgula (xlsx não separou as colunas)
   const byIndex = (i) => {
     const v = rowValues[i];
-    // Rejeita se o valor parece ser a linha inteira (contém vírgula = xlsx não separou)
     if (v === undefined || v === null) return null;
     const s = v.toString().trim();
     return (s && !s.includes(',')) ? s : null;
   };
 
-  const numeroPedido = get('numero do pedido') || byIndex(1);
-  const numeroPacote = get('numero do pacote') || byIndex(2);
-  const status       = get('status pacote')    || byIndex(3) || 'DESCONHECIDO';
-  const valorStr     = get('valor total pacote')|| byIndex(8);
-  const cliente      = get('nome do cliente')  || 'N/A';
-  const dataStr      = get('data do pacote')   || byIndex(0);
+  // Cada campo tem: nome correto (UTF-8) + sem acento + versão corrompida (latin1→UTF-8)
+  const numeroPedido = findKey([
+    'Número do pedido', 'Numero do pedido', 'NÃºmero do pedido'
+  ]) || byIndex(1);
 
-  // Usa número do pedido como ID base (sem sufixo de pacote)
+  const numeroPacote = findKey([
+    'Número do pacote', 'Numero do pacote', 'NÃºmero do pacote'
+  ]) || byIndex(2);
+
+  const status = findKey([
+    'Status pacote no momento que o relatório foi solicitado',
+    'Status pacote no momento que o relatorio foi solicitado',
+    'Status pacote no momento que o relatÃ³rio foi solicitado'
+  ]) || byIndex(3) || 'DESCONHECIDO';
+
+  const valorStr = findKey([
+    'Valor total do Pacote', 'Valor total dos Produtos do pacote'
+  ]) || byIndex(8);
+
+  const cliente = findKey(['Nome do cliente']) || 'N/A';
+  const dataStr = findKey(['Data do Pacote']) || byIndex(0);
+
   const pedidoId = numeroPedido || numeroPacote;
 
   return {
-    pedido_id_original:   pedidoId,
+    pedido_id_original:    pedidoId,
     pedido_id_normalizado: pedidoId ? normalizeOrderId(pedidoId) : null,
     marketplace: 'MAGAZINE_LUIZA',
     status,
