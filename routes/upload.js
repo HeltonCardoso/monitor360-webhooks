@@ -268,17 +268,38 @@ function extractShopee(row) {
       const valStr = value?.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
       valor = parseFloat(valStr) || 0;
     }
-    // Nome do comprador
-    if (k === 'Nome de usuário (comprador)' || kl.includes('comprador') || kl.includes('usuário')) {
+    // Nome do comprador - CORRIGIDO: várias possibilidades
+    if (k === 'Nome de usuário (comprador)' || 
+        k === 'Nome do destinatário' ||
+        kl.includes('comprador') || 
+        kl.includes('usuário') ||
+        kl.includes('destinatário') ||
+        kl.includes('cliente')) {
       cliente = value?.toString().trim() || 'N/A';
+      // Se encontrou um nome válido e não é o primeiro valor vazio, usa ele
+      if (cliente !== 'N/A' && cliente !== '' && cliente.length > 2) {
+        // Já temos o cliente, continua
+      }
     }
     // Data de criação
-    if (k === 'Data de criação do pedido' || kl.includes('data de criação')) {
+    if (k === 'Data de criação do pedido' || kl.includes('data de criação') || kl.includes('criação')) {
       data = value?.toString().trim() || null;
     }
     // Número de rastreamento
     if (k === 'Número de rastreamento' || kl.includes('rastreamento')) {
       rastreio = value?.toString().trim() || null;
+    }
+  }
+
+  // Fallback: tenta pegar o nome da primeira coluna que parece ser nome
+  if (cliente === 'N/A' || !cliente || cliente === '') {
+    for (const [key, value] of Object.entries(row)) {
+      const val = value?.toString().trim() || '';
+      // Se o valor tem espaços, não é número puro, e tem mais de 3 caracteres
+      if (val.includes(' ') && val.length > 5 && !val.includes('@') && !val.match(/^\d+$/)) {
+        cliente = val.substring(0, 100);
+        break;
+      }
     }
   }
 
@@ -289,6 +310,8 @@ function extractShopee(row) {
       pedidoId = firstVal;
     }
   }
+
+  console.log(`📋 Shopee extraído: ID=${pedidoId}, Cliente=${cliente}, Status=${status}, Valor=${valor}`);
 
   return {
     pedido_id_original:    pedidoId,
