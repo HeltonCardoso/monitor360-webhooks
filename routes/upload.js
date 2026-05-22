@@ -407,6 +407,7 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
     const fileExt = req.file.originalname.toLowerCase().split('.').pop();
     const bufferStr = req.file.buffer.slice(0, 500).toString('latin1');
     const isSemicolonCsv = fileExt === 'csv' && bufferStr.includes(';');
+    const isCommaCsv     = fileExt === 'csv' && !bufferStr.includes(';');
     const isTsvOrTxt = fileExt === 'txt' || fileExt === 'tsv';
 
     let rawData = [];
@@ -433,8 +434,29 @@ router.post('/compare', upload.single('planilha'), async (req, res) => {
         headers.forEach((h, i) => { obj[h] = values[i] || ''; });
         return obj;
       }).filter(row => Object.values(row).some(v => v));
+    } else if (isCommaCsv) {
+      const parseCSVLine = (line) => {
+        const result = [];
+        let cur = '', inQuote = false;
+        for (const ch of line) {
+          if (ch === '"') { inQuote = !inQuote; }
+          else if (ch === ',' && !inQuote) { result.push(cur.trim()); cur = ''; }
+          else cur += ch;
+        }
+        result.push(cur.trim());
+        return result;
+      };
+      const text = req.file.buffer.toString('utf8');
+      const lines = text.split('\n').filter(l => l.trim());
+      const headers = parseCSVLine(lines[0]);
+      rawData = lines.slice(1).map(line => {
+        const values = parseCSVLine(line);
+        const obj = {};
+        headers.forEach((h, i) => { obj[h] = values[i] || ''; });
+        return obj;
+      }).filter(row => Object.values(row).some(v => v));
     } else {
-      // XLSX / XLS / CSV normal
+      // XLSX / XLS
       const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
