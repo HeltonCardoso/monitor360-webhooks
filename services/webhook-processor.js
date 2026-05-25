@@ -366,33 +366,6 @@ const salvarWebhookJET = async (idInterno, numeroPedido, event, eventOccurredAt,
   }
 };
 
-const salvarWebhookJET = async (idInterno, numeroPedido, event, eventOccurredAt, payload) => {
-  try {
-    const normalizedStatus = STATUS_MAP.JET[event] || event;
-
-    await pool.query(
-      `INSERT INTO tracking_events 
-       (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (pedido_id, origem, status) DO UPDATE SET
-         timestamp = EXCLUDED.timestamp,
-         payload = EXCLUDED.payload`,
-      [
-        uuidv4(),
-        numeroPedido,
-        'JET',
-        normalizedStatus,
-        new Date(eventOccurredAt),
-        JSON.stringify(payload),
-        JSON.stringify(payload)
-      ]
-    );
-
-    console.log(`✅ JET ${numeroPedido} salvo (sem dados da API)`);
-  } catch (error) {
-    console.error('❌ Erro ao salvar webhook JET:', error.message);
-  }
-};
 
 const processOnclickEvent = async (payload) => {
   try {
