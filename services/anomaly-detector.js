@@ -19,10 +19,11 @@ const createAnomaly = async (pedido_id, tipo, origem_falha, marketplace, metadat
       return;
     }
 
+    // ✅ VERSÃO CORRIGIDA - SEM a coluna metadata
     await pool.query(
-      `INSERT INTO anomalias (pedido_id, tipo, origem_falha, marketplace, criado_em, metadata)
-       VALUES ($1, $2, $3, $4, NOW(), $5)`,
-      [pedido_id, tipo, origem_falha, marketplace, JSON.stringify(metadata)]
+      `INSERT INTO anomalias (pedido_id, tipo, origem_falha, marketplace, criado_em)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [pedido_id, tipo, origem_falha, marketplace]
     );
 
     const infoAnomalia = TIPOS_ANOMALIA[tipo] || { descricao: tipo, severidade: 'MEDIUM' };
