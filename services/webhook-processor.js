@@ -35,7 +35,6 @@ const processAnyMarketEvent = async (payload) => {
     console.log(`   Evento: ${event}`);
     console.log(`   ID AnyMarket: ${idAnyMarket}`);
 
-    // Ignora duplicatas
     const dedupKey = `anymarket-${idAnyMarket}-${event}`;
     if (isDuplicate(dedupKey)) {
       console.log(`⏭️ Ignorando duplicata AnyMarket: ${idAnyMarket} - ${event}`);
@@ -48,26 +47,29 @@ const processAnyMarketEvent = async (payload) => {
     }
 
     // 1️⃣ BUSCAR DADOS COMPLETOS NA API
-    const dadosCompletos = await anymarketApi.buscarDetalhesPedido(idAnyMarket);
-    const infoRelevante = anymarketApi.extrairInfoRelevante(dadosCompletos);
-
-    if (!infoRelevante) {
-      console.warn(`⚠️ Não conseguiu extrair info do pedido AnyMarket ${idAnyMarket}`);
+    // ✅ AGORA jsonCompleto É O JSON COMPLETO DA API!
+    const jsonCompleto = await anymarketApi.buscarDetalhesPedido(idAnyMarket);
+    
+    if (!jsonCompleto) {
+      console.warn(`⚠️ Não conseguiu buscar dados da API AnyMarket ${idAnyMarket}`);
       return;
     }
 
-    const numeroMarketplace = infoRelevante.numero_marketplace;
+    // 2️⃣ EXTRAIR APENAS O NECESSÁRIO PARA O SISTEMA (numero_marketplace, etc)
+    const infoEssencial = anymarketApi.extrairInfoRelevante(jsonCompleto);
 
-    if (!numeroMarketplace) {
-      console.error(`❌ numero_marketplace ausente mesmo após busca na API`);
+    if (!infoEssencial || !infoEssencial.numero_marketplace) {
+      console.error(`❌ Não conseguiu extrair numero_marketplace do pedido AnyMarket ${idAnyMarket}`);
       return;
     }
+
+    const numeroMarketplace = infoEssencial.numero_marketplace;
 
     console.log(`✅ Marketplace ID obtido: ${numeroMarketplace}`);
-    console.log(`🏪 Marketplace: ${infoRelevante.marketplace}`);
+    console.log(`🏪 Marketplace: ${infoEssencial.marketplace}`);
     console.log(`📊 Status: ${event} → ${STATUS_MAP.ANYMARKET[event] || event}`);
 
-    // 2️⃣ SALVAR MAPEAMENTO
+    // 3️⃣ SALVAR MAPEAMENTO
     await pool.query(
       `INSERT INTO pedidos_mapeamento 
        (id_anymarket, numero_marketplace, marketplace_origem)
@@ -76,13 +78,13 @@ const processAnyMarketEvent = async (payload) => {
          id_anymarket = $1,
          marketplace_origem = $3,
          atualizado_em = NOW()`,
-      [idAnyMarket, numeroMarketplace, infoRelevante.marketplace]
+      [idAnyMarket, numeroMarketplace, infoEssencial.marketplace]
     );
 
-    // 3️⃣ NORMALIZAR STATUS
+    // 4️⃣ NORMALIZAR STATUS
     const normalizedStatus = STATUS_MAP.ANYMARKET[event] || event;
 
-    // 4️⃣ SALVAR TRACKING
+    // 5️⃣ SALVAR TRACKING - ✅ dados_completos RECEBE O JSON COMPLETO!
     await pool.query(
       `INSERT INTO tracking_events 
        (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
@@ -98,13 +100,13 @@ const processAnyMarketEvent = async (payload) => {
         normalizedStatus,
         new Date(),
         JSON.stringify(payload),
-        JSON.stringify(infoRelevante)
+        JSON.stringify(jsonCompleto)  // ✅ AGORA É O JSON COMPLETO!
       ]
     );
 
     console.log(`✅ ANYMARKET ${numeroMarketplace} salvo com status ${normalizedStatus}`);
 
-    // 5️⃣ PAID_WAITING_DELIVERY = AnyMarket confirmou envio → RETORNO_ANYMARKET
+    // 6️⃣ PAID_WAITING_DELIVERY = AnyMarket confirmou envio
     if (event === 'PAID_WAITING_DELIVERY') {
       await pool.query(
         `INSERT INTO tracking_events 
@@ -120,13 +122,13 @@ const processAnyMarketEvent = async (payload) => {
           'ENVIADO',
           new Date(),
           JSON.stringify(payload),
-          JSON.stringify(infoRelevante)
+          JSON.stringify(jsonCompleto)  // ✅ JSON COMPLETO TAMBÉM
         ]
       );
       console.log(`↩️ [RETORNO_ANYMARKET] Pedido ${numeroMarketplace} confirmado como enviado`);
     }
 
-    // 6️⃣ VERIFICAR ANOMALIA: FATURADO_APOS_ENVIO (exceto ME2)
+    // 7️⃣ VERIFICAR ANOMALIA: FATURADO_APOS_ENVIO (exceto ME2)
     if (event === 'INVOICED') {
       const jetEnviado = await pool.query(
         `SELECT id FROM tracking_events 
@@ -135,14 +137,18 @@ const processAnyMarketEvent = async (payload) => {
       );
 
       if (jetEnviado.rows.length) {
-        const pedidoIsMe2 = isMe2(infoRelevante);
+        // ✅ Usa infoEssencial (já tem shippingtype)
+        const pedidoIsMe2 = infoEssencial.produtos?.some(item =>
+          (item.shippingtype || '').toLowerCase().includes('me2')
+        );
+        
         if (!pedidoIsMe2) {
           console.warn(`⚠️ Pedido ${numeroMarketplace} ficou FATURADO após JET enviar (não é ME2)`);
           await anomalyDetector.createAnomaly(
             numeroMarketplace,
             'FATURADO_APOS_ENVIO',
             'ANYMARKET',
-            infoRelevante.marketplace,
+            infoEssencial.marketplace,
             { detalhes: 'AnyMarket ficou como Faturado após JET já ter confirmado envio' }
           );
         } else {
@@ -151,8 +157,7 @@ const processAnyMarketEvent = async (payload) => {
       }
     }
 
-    // 7️⃣ VERIFICAR PIPELINE (NÃO CRIA ANOMALIA IMEDIATAMENTE)
-    // A criação de anomalia será feita pelo checkPipelineStatus() baseado no SLA
+    // 8️⃣ VERIFICAR PIPELINE
     console.log(`📊 Verificando pipeline...`);
     await anomalyDetector.checkPipelineStatus(numeroMarketplace);
 
@@ -171,31 +176,39 @@ const processJETEvent = async (payload) => {
     console.log(`   ID Interno: ${idInterno}`);
     console.log(`   Número Pedido: ${numeroPedido}`);
 
-    // Ignora duplicatas
     const dedupKeyJet = `jet-${idInterno}-${Event}`;
     if (isDuplicate(dedupKeyJet)) {
       console.log(`⏭️ Ignorando duplicata JET: ${idInterno} - ${Event}`);
       return;
     }
 
-    // Busca dados completos do pedido na API da JET
-    const dadosCompletos = await jetApi.buscarDetalhesPedido(numeroPedido);
-    const infoRelevante = jetApi.extrairInfoRelevante(dadosCompletos);
-
-    if (!infoRelevante) {
-      console.warn(`⚠️ Não conseguiu extrair info do pedido JET ${numeroPedido}`);
+    // 1️⃣ BUSCAR DADOS COMPLETOS NA API
+    // ✅ AGORA jsonCompleto É O JSON COMPLETO DA API!
+    const jsonCompleto = await jetApi.buscarDetalhesPedido(numeroPedido);
+    
+    if (!jsonCompleto) {
+      console.warn(`⚠️ Não conseguiu buscar dados da API JET ${numeroPedido}`);
       await salvarWebhookJET(idInterno, numeroPedido, Event, EventOccurredAt, payload);
       return;
     }
 
-    const numeroMarketplace = infoRelevante.numero_marketplace;
+    // 2️⃣ EXTRAIR APENAS O NECESSÁRIO PARA O SISTEMA
+    const infoEssencial = jetApi.extrairInfoRelevante(jsonCompleto);
+
+    if (!infoEssencial || !infoEssencial.numero_marketplace) {
+      console.warn(`⚠️ Não conseguiu extrair numero_marketplace do pedido JET ${numeroPedido}`);
+      await salvarWebhookJET(idInterno, numeroPedido, Event, EventOccurredAt, payload);
+      return;
+    }
+
+    const numeroMarketplace = infoEssencial.numero_marketplace;
     const normalizedStatus = STATUS_MAP.JET[Event] || Event;
 
     console.log(`✅ Marketplace ID: ${numeroMarketplace}`);
-    console.log(`🏪 Marketplace: ${infoRelevante.marketplace}`);
+    console.log(`🏪 Marketplace: ${infoEssencial.marketplace}`);
     console.log(`📊 Status: ${Event} → ${normalizedStatus}`);
 
-    // ─── 1. SALVAR EVENTO JET ─────────────────────────────────────────
+    // ─── 3. SALVAR EVENTO JET - ✅ dados_completos RECEBE O JSON COMPLETO! ───
     await pool.query(
       `INSERT INTO tracking_events 
        (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
@@ -211,13 +224,13 @@ const processJETEvent = async (payload) => {
         normalizedStatus,
         new Date(EventOccurredAt),
         JSON.stringify(payload),
-        JSON.stringify(infoRelevante)
+        JSON.stringify(jsonCompleto)  // ✅ AGORA É O JSON COMPLETO!
       ]
     );
 
     console.log(`✅ JET ${numeroPedido} - Evento ${Event} salvo`);
 
-    // ─── 2. SALVAR MAPEAMENTO ─────────────────────────────────────────
+    // ─── 4. SALVAR MAPEAMENTO ─────────────────────────────────────────
     await pool.query(
       `INSERT INTO pedidos_mapeamento 
        (id_jet, numero_marketplace)
@@ -228,11 +241,10 @@ const processJETEvent = async (payload) => {
       [numeroPedido, numeroMarketplace]
     );
 
-    // ─── 3. TRATAR EVENTOS ESPECÍFICOS E INFERIR ONCLICK ──────────────
+    // ─── 5. TRATAR EVENTOS ESPECÍFICOS E INFERIR ONCLICK ──────────────
 
-    // 🔥 CASO 1: Pedido entrou em produção (EM_PRODUCAO)
+    // Pedido entrou em produção
     if (Event === 'Pedido.EmProducao') {
-      // INFERE que o pedido está na ONCLICK
       await pool.query(
         `INSERT INTO tracking_events 
          (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
@@ -247,16 +259,15 @@ const processJETEvent = async (payload) => {
           'EM_PRODUCAO',
           new Date(EventOccurredAt),
           JSON.stringify({ inferido_de: 'JET', evento_jet: Event }),
-          JSON.stringify({ inferido_de: 'JET', evento_jet: Event, pedido_jet: numeroPedido })
+          JSON.stringify({ inferido_de: 'JET', evento_jet: Event, json_completo_jet: jsonCompleto })
         ]
       );
-      
       console.log(`🏭 [ONCLICK] Pedido ${numeroMarketplace} em produção (via JET.EmProducao)`);
     }
 
-    // 🔥 CASO 2: Pedido foi enviado/faturado (ENVIADO)
+    // Pedido foi enviado
     if (Event === 'Pedido.Enviado') {
-      // 3a: INFERE que o pedido SAIU da ONCLICK
+      // Inferir saída da ONCLICK
       await pool.query(
         `INSERT INTO tracking_events 
          (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
@@ -271,13 +282,12 @@ const processJETEvent = async (payload) => {
           'FATURADO_ENVIADO',
           new Date(EventOccurredAt),
           JSON.stringify({ inferido_de: 'JET', evento_jet: Event }),
-          JSON.stringify({ inferido_de: 'JET', evento_jet: Event, pedido_jet: numeroPedido })
+          JSON.stringify({ inferido_de: 'JET', evento_jet: Event, json_completo_jet: jsonCompleto })
         ]
       );
-      
       console.log(`📦 [ONCLICK] Pedido ${numeroMarketplace} faturado e enviado (via JET.Enviado)`);
 
-      // 3b: GRAVA RETORNO_JET (confirmação de envio)
+      // Gravar RETORNO_JET
       await pool.query(
         `INSERT INTO tracking_events 
          (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
@@ -292,14 +302,13 @@ const processJETEvent = async (payload) => {
           'CONFIRMADO',
           new Date(EventOccurredAt),
           JSON.stringify(payload),
-          JSON.stringify(infoRelevante)
+          JSON.stringify(jsonCompleto)  // ✅ JSON COMPLETO
         ]
       );
-      
       console.log(`↩️ [RETORNO_JET] Pedido ${numeroMarketplace} confirmado como enviado`);
     }
 
-    // ─── 4. VERIFICAR ANOMALIA: ENVIADO_SEM_PRODUCAO ───────────────────
+    // ─── 6. VERIFICAR ANOMALIA: ENVIADO_SEM_PRODUCAO ───────────────────
     if (normalizedStatus === 'ENVIADO') {
       const onclickCheck = await pool.query(
         `SELECT id FROM tracking_events 
@@ -313,18 +322,47 @@ const processJETEvent = async (payload) => {
           numeroMarketplace,
           'ENVIADO_SEM_PRODUCAO',
           'JET',
-          infoRelevante.marketplace,
+          infoEssencial.marketplace,
           { detalhes: 'JET enviou o pedido mas ele nunca passou pelo status EM_PRODUCAO na ONCLICK' }
         );
       }
     }
 
-    // ─── 5. VERIFICAR PIPELINE COMPLETO ────────────────────────────────
+    // ─── 7. VERIFICAR PIPELINE COMPLETO ────────────────────────────────
     console.log(`📊 Verificando pipeline...`);
     await anomalyDetector.checkPipelineStatus(numeroMarketplace);
 
   } catch (error) {
     console.error('❌ Erro ao processar JET:', error.message);
+  }
+};
+
+// Função auxiliar para salvar webhook sem dados da API
+const salvarWebhookJET = async (idInterno, numeroPedido, event, eventOccurredAt, payload) => {
+  try {
+    const normalizedStatus = STATUS_MAP.JET[event] || event;
+
+    await pool.query(
+      `INSERT INTO tracking_events 
+       (id, pedido_id, origem, status, timestamp, payload, dados_completos) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (pedido_id, origem, status) DO UPDATE SET
+         timestamp = EXCLUDED.timestamp,
+         payload = EXCLUDED.payload`,
+      [
+        uuidv4(),
+        numeroPedido,
+        'JET',
+        normalizedStatus,
+        new Date(eventOccurredAt),
+        JSON.stringify(payload),
+        JSON.stringify({ erro: 'Não foi possível buscar dados da API JET', webhook_original: payload })
+      ]
+    );
+
+    console.log(`✅ JET ${numeroPedido} salvo (sem dados da API)`);
+  } catch (error) {
+    console.error('❌ Erro ao salvar webhook JET:', error.message);
   }
 };
 

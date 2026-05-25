@@ -20,7 +20,7 @@ async function buscarDetalhesPedido(idOrder, tentativa = 1) {
     const cached = cachePedidos.get(idOrder);
     if (Date.now() - cached.timestamp < 86400000) {
       console.log(`📦 Pedido ${idOrder} veio do cache`);
-      return cached.dados;
+      return cached.dados;  // ✅ Retorna JSON completo
     }
   }
 
@@ -38,7 +38,7 @@ async function buscarDetalhesPedido(idOrder, tentativa = 1) {
           'apiKey': API_KEY,
           'Content-Type': 'application/json'
         },
-        timeout: 60000 // ✅ Aumentado para 60 segundos
+        timeout: 60000
       });
 
       const tempo = Date.now() - inicio;
@@ -46,8 +46,10 @@ async function buscarDetalhesPedido(idOrder, tentativa = 1) {
       if (response.data) {
         console.log(`✅ Pedido ${idOrder} obtido em ${tempo / 1000}s`);
         const dados = response.data.result || response.data;
+        
+        // ✅ SALVA O JSON COMPLETO NO CACHE
         cachePedidos.set(idOrder, { dados: dados, timestamp: Date.now() });
-        return dados;
+        return dados;  // ✅ Retorna JSON completo
       }
 
     } catch (error) {
@@ -75,6 +77,8 @@ async function buscarDetalhesPedido(idOrder, tentativa = 1) {
   return null;
 }
 
+// ⚠️ FUNÇÃO MANTIDA APENAS PARA EXTRAIR O numero_marketplace E OUTROS CAMPOS ESSENCIAIS
+// (NÃO SERÁ MAIS USADA PARA POPULAR O dados_completos)
 function extrairInfoRelevante(detalhes) {
   if (!detalhes) return null;
 
@@ -82,45 +86,8 @@ function extrairInfoRelevante(detalhes) {
     id: detalhes.idOrder,
     numero_marketplace: detalhes.marketPlaceNumberOrder,
     marketplace: detalhes.marketPlaceName,
-    cliente: detalhes.nameCustomer,
-    email: detalhes.email,
-    telefone: detalhes.phone1,
-    cpf_cnpj: detalhes.cpf_cnpj,
-    status: detalhes.historyListOrderStatus?.[0]?.statusCode || 'DESCONHECIDO',
-    valor_total: detalhes.total,
-    valor_frete: detalhes.totalShipping,
-    desconto: detalhes.totalDiscount,
-    data_pedido: detalhes.dateOrder,
-    endereco: {
-      rua: detalhes.address?.streetAddress,
-      numero: detalhes.address?.number,
-      complemento: detalhes.address?.complement,
-      bairro: detalhes.address?.neighbourhood,
-      cidade: detalhes.address?.city,
-      estado: detalhes.address?.state,
-      cep: detalhes.address?.zipCode,
-      destinatario: detalhes.address?.receiver
-    },
-    produtos: (detalhes.orderItems || []).map(item => ({
-      id: item.idProduct,
-      codigo: item.productCode,
-      nome: item.name?.replace(/<[^>]*>/g, '').substring(0, 100),
-      quantidade: item.quantity,
-      preco_unitario: item.unitPrice,
-      total: item.total,
-      marca: item.brand,
-      categoria: item.category
-    })),
-    pagamento: {
-      metodo: detalhes.namePaymentMethodGateway,
-      parcelas: detalhes.numberOfInstallments,
-      valor_parcela: detalhes.valueOfInstallment
-    },
-    rastreamento: {
-      transportadora: detalhes.shippingCompany,
-      numero_rastreamento: detalhes.historyListOrderStatus?.[0]?.orderInfo?.trackingNumber || null,
-      link_rastreamento: detalhes.historyListOrderStatus?.[0]?.trackingLink || null
-    }
+    status: detalhes.historyListOrderStatus?.[0]?.statusCode || 'DESCONHECIDO'
+    // Apenas o essencial para o sistema funcionar!
   };
 }
 
